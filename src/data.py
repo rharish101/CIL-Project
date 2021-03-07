@@ -59,18 +59,8 @@ class TrainDataset(Dataset):
         This transform works on both the input and output simultaneously.
         """
         transforms = [
-            # Combine them so that random transforms do the same rotation,
-            # crop, etc. for both input and output
-            Lambda(torch.cat),
             # Scale from uint8 [0, 255] to float32 [0, 1]
-            Lambda(lambda x: x.float() / 255),
-            # Random transformations for data augmentation
-            RandomCrop(CROP_SIZE),
-            RandomRotation(ROTATION_RANGE),
-            RandomHorizontalFlip(),
-            RandomVerticalFlip(),
-            # Split combined tensor into input and output
-            Lambda(lambda x: (x[:3], x[3].unsqueeze(0))),
+            Lambda(lambda tup: tuple(i.float() / 255 for i in tup)),
             # Threshold the output image
             Lambda(lambda tup: (tup[0], (tup[1] > 0.5).float())),
         ]
@@ -106,3 +96,19 @@ class TestDataset(Dataset):
         """Get the transformation for the test data."""
         # Scale from uint8 [0, 255] to float32 [0, 1]
         return Lambda(lambda x: x.float() / 255)
+
+
+def get_randomizer() -> Any:
+    """Get random transformations for data augmentation."""
+    transforms = [
+        # Combine them along channels so that random transforms do the same
+        # rotation, crop, etc. for both batches of input and output
+        Lambda(lambda tup: torch.cat(tup, 1)),
+        RandomCrop(CROP_SIZE),
+        RandomRotation(ROTATION_RANGE),
+        RandomHorizontalFlip(),
+        RandomVerticalFlip(),
+        # Split combined tensor into input and output
+        Lambda(lambda x: (x[:, :3], x[:, 3].unsqueeze(1))),
+    ]
+    return Compose(transforms)
