@@ -29,7 +29,9 @@ class Trainer:
         )
         self.loss = BCEWithLogitsLoss()
 
-    def train(self, batch_size: int, max_epochs: int, save_dir: Path) -> None:
+    def train(
+        self, batch_size: int, max_epochs: int, save_dir: Path, save_steps: int
+    ) -> None:
         """Train the model."""
         loader = DataLoader(
             self.dataset, batch_size=batch_size, shuffle=True, pin_memory=True
@@ -52,6 +54,9 @@ class Trainer:
             loss = self.loss(prediction, ground_truth)
             loss.backward()
             self.optim.step()
+
+            if step % save_steps == 0:
+                self.save_weights(save_dir)
 
         self.save_weights(save_dir)
 
