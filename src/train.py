@@ -5,6 +5,7 @@ import torch
 from torch.nn import BCEWithLogitsLoss, Module
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing_extensions import Final
 
@@ -30,12 +31,20 @@ class Trainer:
         self.loss = BCEWithLogitsLoss()
 
     def train(
-        self, batch_size: int, max_epochs: int, save_dir: Path, save_steps: int
+        self,
+        batch_size: int,
+        max_epochs: int,
+        save_dir: Path,
+        save_steps: int,
+        log_dir: Path,
+        log_steps: int,
     ) -> None:
         """Train the model."""
         loader = DataLoader(
             self.dataset, batch_size=batch_size, shuffle=True, pin_memory=True
         )
+
+        writer = SummaryWriter(str(log_dir))
 
         # Iterate step-by-step for a combined progress bar, and for automatic
         # step counting through enumerate.
@@ -58,6 +67,14 @@ class Trainer:
             if step % save_steps == 0:
                 self.save_weights(save_dir)
 
+            if step % log_steps == 0:
+                writer.add_scalar("losses/classification", loss, step)
+                writer.add_scalar(
+                    "losses/regularization", self._get_l2_reg(), step
+                )
+                for name, value in self.model.state_dict().items():
+                    writer.add_histogram(name, value, step)
+
         self.save_weights(save_dir)
 
     def save_weights(self, save_dir: Path) -> None:
@@ -70,3 +87,10 @@ class Trainer:
     def load_weights(cls, model: Module, load_dir: Path) -> None:
         """Load the model's weights."""
         model.load_state_dict(torch.load(load_dir / cls.SAVE_NAME))
+
+    def _get_l2_reg(self) -> torch.Tensor:
+        """Get the L2 regularization value for the model."""
+        loss = 0
+        for param in self.model.parameters():
+            loss += (param ** 2).sum()
+        return loss
