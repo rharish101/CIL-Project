@@ -56,7 +56,10 @@ class Trainer:
             self.dataset, batch_size=batch_size, shuffle=True, pin_memory=True
         )
 
-        writer = SummaryWriter(str(log_dir))
+        curr_date = datetime.now().astimezone()
+        timestamped_log_dir = log_dir / curr_date.isoformat()
+        timestamped_log_dir.mkdir(parents=True)
+        writer = SummaryWriter(str(timestamped_log_dir))
 
         # Save hyper-params as a TOML file for reference
         config: Dict[str, Any] = {
@@ -65,7 +68,7 @@ class Trainer:
             "max_epochs": max_epochs,
             "date": datetime.now().astimezone(),
         }
-        for dest in save_dir, log_dir:
+        for dest in save_dir, timestamped_log_dir:
             with open(dest / self.CONFIG_NAME, "w") as f:
                 toml.dump(config, f)
 
