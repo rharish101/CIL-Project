@@ -176,6 +176,19 @@ torch = "1.8.0"
 scipy = ["scipy"]
 
 [[package]]
+name = "tqdm"
+version = "4.59.0"
+description = "Fast, Extensible Progress Meter"
+category = "main"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
+
+[package.extras]
+dev = ["py-make (>=0.1.0)", "twine", "wheel"]
+notebook = ["ipywidgets (>=6)"]
+telegram = ["requests"]
+
+[[package]]
 name = "typing-extensions"
 version = "3.7.4.3"
 description = "Backported and Experimental Type Hints for Python 3.5+"
@@ -218,7 +231,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.2"
-content-hash = "57e5e06eaaffaa7b608949b8b1033c8deec60f9deb84b159fe80f1322a04b1df"
+content-hash = "6be61831f5772dbfe71060166cbcea4d18dc04b598b71d90b46005590fb8c406"
 
 [metadata.files]
 appdirs = [
@@ -395,6 +408,10 @@ torchvision = [
     {file = "torchvision-0.9.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:421bda7131f3c0eae2260f10174ac3c49e54183b33acb927b4b572f4cd90066d"},
     {file = "torchvision-0.9.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:d85d405e8cf694c1f85da7f0496ea69dd4f8d8dafbdad1e29bcdc4c621fc5cf0"},
     {file = "torchvision-0.9.0-cp39-cp39-win_amd64.whl", hash = "sha256:b03275f351feffaf7450d234ffb57cce26ff5e696d01ef5f543de205f18849a9"},
+]
+tqdm = [
+    {file = "tqdm-4.59.0-py2.py3-none-any.whl", hash = "sha256:9fdf349068d047d4cfbe24862c425883af1db29bcddf4b0eeb2524f6fbdb23c7"},
+    {file = "tqdm-4.59.0.tar.gz", hash = "sha256:d666ae29164da3e517fcf125e41d4fe96e5bb375cd87ff9763f6b38b5592fe33"},
 ]
 typing-extensions = [
     {file = "typing_extensions-3.7.4.3-py2-none-any.whl", hash = "sha256:dafc7639cde7f1b6e1acc0f457842a83e722ccca8eef5270af2d74792619a89f"},

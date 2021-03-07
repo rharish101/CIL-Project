@@ -18,6 +18,9 @@ from typing_extensions import Final
 CROP_SIZE: Final = 128
 ROTATION_RANGE: Final = 10
 
+INPUT_CHANNELS: Final = 3
+OUTPUT_CHANNELS: Final = 1
+
 
 class TrainDataset(Dataset):
     """Dataset for the training data."""
