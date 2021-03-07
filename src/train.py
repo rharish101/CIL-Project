@@ -35,17 +35,23 @@ class Trainer:
             self.dataset, batch_size=batch_size, shuffle=True, pin_memory=True
         )
 
-        for epoch in range(max_epochs):
-            for image, ground_truth in tqdm(loader):
-                self.optim.zero_grad()
+        # Iterate step-by-step for a combined progress bar, and for automatic
+        # step counting through enumerate.
+        iterator = (data for epoch in range(max_epochs) for data in loader)
+        iter_len = max_epochs * len(loader)
 
-                image = image.to(self.device)
-                ground_truth = ground_truth.to(self.device)
+        for step, (image, ground_truth) in enumerate(
+            tqdm(iterator, total=iter_len, desc="Training"), 1
+        ):
+            self.optim.zero_grad()
 
-                prediction = self.model(image)
-                loss = self.loss(prediction, ground_truth)
-                loss.backward()
-                self.optim.step()
+            image = image.to(self.device)
+            ground_truth = ground_truth.to(self.device)
+
+            prediction = self.model(image)
+            loss = self.loss(prediction, ground_truth)
+            loss.backward()
+            self.optim.step()
 
         self.save_weights(save_dir)
 
