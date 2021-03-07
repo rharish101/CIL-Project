@@ -7,6 +7,7 @@ import toml
 import torch
 from torch.nn import BCEWithLogitsLoss, Module
 from torch.optim import Adam
+from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -46,6 +47,7 @@ class Trainer:
         self,
         batch_size: int,
         max_epochs: int,
+        max_learn_rate: float,
         save_dir: Path,
         save_steps: int,
         log_dir: Path,
@@ -66,6 +68,7 @@ class Trainer:
             **self.config,
             "batch_size": batch_size,
             "max_epochs": max_epochs,
+            "max_learn_rate": max_learn_rate,
             "date": datetime.now().astimezone(),
         }
         for dest in save_dir, timestamped_log_dir:
@@ -75,10 +78,14 @@ class Trainer:
         # Iterate step-by-step for a combined progress bar, and for automatic
         # step counting through enumerate.
         iterator = (data for epoch in range(max_epochs) for data in loader)
-        iter_len = max_epochs * len(loader)
+        max_steps = max_epochs * len(loader)
+
+        scheduler = OneCycleLR(
+            self.optim, max_lr=max_learn_rate, total_steps=max_steps
+        )
 
         for step, (image, ground_truth) in enumerate(
-            tqdm(iterator, total=iter_len, desc="Training"), 1
+            tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
             self.optim.zero_grad()
 
@@ -89,6 +96,7 @@ class Trainer:
             loss = self.loss(prediction, ground_truth)
             loss.backward()
             self.optim.step()
+            scheduler.step()
 
             if step % save_steps == 0:
                 self.save_weights(save_dir)
