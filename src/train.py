@@ -1,6 +1,9 @@
 """Class to train the model."""
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict
 
+import toml
 import torch
 from torch.nn import BCEWithLogitsLoss, Module
 from torch.optim import Adam
@@ -17,18 +20,27 @@ class Trainer:
     """Class to train the model."""
 
     SAVE_NAME: Final = "model.pt"
+    CONFIG_NAME: Final = "config.toml"
 
     def __init__(self, data_dir: Path, learn_rate: float, weight_decay: float):
         """Store config and initialize everything."""
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
+
         self.dataset = TrainDataset(data_dir)
+
         self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS).to(self.device)
         self.optim = Adam(
             self.model.parameters(), lr=learn_rate, weight_decay=weight_decay
         )
         self.loss = BCEWithLogitsLoss()
+
+        # Used when dumping hyper-params to a file
+        self.config: Final = {
+            "learn_rate": learn_rate,
+            "weight_decay": weight_decay,
+        }
 
     def train(
         self,
@@ -45,6 +57,17 @@ class Trainer:
         )
 
         writer = SummaryWriter(str(log_dir))
+
+        # Save hyper-params as a TOML file for reference
+        config: Dict[str, Any] = {
+            **self.config,
+            "batch_size": batch_size,
+            "max_epochs": max_epochs,
+            "date": datetime.now().astimezone(),
+        }
+        for dest in save_dir, log_dir:
+            with open(dest / self.CONFIG_NAME, "w") as f:
+                toml.dump(config, f)
 
         # Iterate step-by-step for a combined progress bar, and for automatic
         # step counting through enumerate.
