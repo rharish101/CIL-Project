@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 import toml
 import torch
+from torch.cuda.amp import GradScaler, autocast
 from torch.nn import BCEWithLogitsLoss, Module
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
@@ -52,6 +53,7 @@ class Trainer:
         save_steps: int,
         log_dir: Path,
         log_steps: int,
+        mixed_precision: bool = False,
     ) -> None:
         """Train the model."""
         loader = DataLoader(
@@ -69,6 +71,7 @@ class Trainer:
             "batch_size": batch_size,
             "max_epochs": max_epochs,
             "max_learn_rate": max_learn_rate,
+            "mixed_precision": mixed_precision,
             "date": datetime.now().astimezone(),
         }
         for dest in save_dir, timestamped_log_dir:
@@ -83,6 +86,7 @@ class Trainer:
         scheduler = OneCycleLR(
             self.optim, max_lr=max_learn_rate, total_steps=max_steps
         )
+        scaler = GradScaler(enabled=mixed_precision)
 
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
@@ -92,10 +96,13 @@ class Trainer:
             image = image.to(self.device)
             ground_truth = ground_truth.to(self.device)
 
-            prediction = self.model(image)
-            loss = self.loss(prediction, ground_truth)
-            loss.backward()
-            self.optim.step()
+            with autocast(enabled=mixed_precision):
+                prediction = self.model(image)
+                loss = self.loss(prediction, ground_truth)
+
+            scaler.scale(loss).backward()
+            scaler.step(self.optim)
+            scaler.update()
             scheduler.step()
 
             if step % save_steps == 0:
