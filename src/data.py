@@ -1,6 +1,6 @@
 """Data loading utilities."""
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Callable, Tuple, TypeVar
 
 import torch
 from torch.utils.data import Dataset
@@ -20,6 +20,9 @@ ROTATION_RANGE: Final = 10
 
 INPUT_CHANNELS: Final = 3
 OUTPUT_CHANNELS: Final = 1
+
+_TransformArg = TypeVar("_TransformArg")
+TransformType = Callable[[_TransformArg], _TransformArg]
 
 
 class TrainDataset(Dataset):
@@ -53,7 +56,7 @@ class TrainDataset(Dataset):
         return self.transform((image, ground_truth))
 
     @staticmethod
-    def get_transform() -> Any:
+    def get_transform() -> TransformType:
         """Get the transformation for the training data.
 
         This transform works on both the input and output simultaneously.
@@ -92,13 +95,13 @@ class TestDataset(Dataset):
         return self.transform(image)
 
     @staticmethod
-    def get_transform() -> Any:
+    def get_transform() -> TransformType:
         """Get the transformation for the test data."""
         # Scale from uint8 [0, 255] to float32 [0, 1]
         return Lambda(lambda x: x.float() / 255)
 
 
-def get_randomizer() -> Any:
+def get_randomizer() -> TransformType:
     """Get random transformations for data augmentation."""
     transforms = [
         # Combine them along channels so that random transforms do the same
