@@ -40,7 +40,7 @@ class ConvBlock(Module):
             in_channels: The no. of input channels
             out_channels: The no. of output channels
             kernel_size: The kernel size for Conv2d
-            dropout: Whether to use dropout or not
+            dropout: Whether to use dropout or not (useful for input layers)
         """
         super().__init__()
         padding = (kernel_size - 1) // 2
@@ -83,7 +83,7 @@ class ConvTBlock(Module):
         Args:
             in_channels: The no. of input channels
             out_channels: The no. of output channels
-            kernel_size: The kernel size for Conv2d
+            kernel_size: The kernel size for ConvTranspose2d
         """
         super().__init__()
         padding = (kernel_size - 1) // 2
@@ -108,11 +108,16 @@ class ConvTBlock(Module):
 
 
 class UNet(Module):
-    """Class for the UNet architecture."""
+    """Class for the UNet architecture.
+
+    This architecture is adapted from: https://arxiv.org/abs/1505.04597
+    """
 
     def __init__(self, in_channels: int, out_channels: int):
         """Initialize the model architecture."""
         super().__init__()
+        # Each block starts after the previous block, and terminates at a point
+        # where either a skip connection starts or ends
         blocks = [
             Sequential(
                 ConvBlock(in_channels, 64, dropout=False),

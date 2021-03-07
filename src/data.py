@@ -15,13 +15,14 @@ from torchvision.transforms import (
 )
 from typing_extensions import Final
 
-CROP_SIZE: Final = 128
-ROTATION_RANGE: Final = 10
+CROP_SIZE: Final = 128  # height/width of model inputs
+ROTATION_RANGE: Final = 10  # max rotation in degrees for random rotation
 
 INPUT_CHANNELS: Final = 3
 OUTPUT_CHANNELS: Final = 1
 
 _TransformArg = TypeVar("_TransformArg")
+# Type for torchvision transforms
 TransformType = Callable[[_TransformArg], _TransformArg]
 
 
@@ -29,7 +30,7 @@ class TrainDataset(Dataset):
     """Dataset for the training data."""
 
     def __init__(self, root_dir: Path):
-        """Load the list of images in the dataset.
+        """Load the list of training images in the dataset.
 
         Args:
             root_dir: Path to the directory where the CIL data is extracted
@@ -49,7 +50,7 @@ class TrainDataset(Dataset):
         return len(self.file_names)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Get the item at the given index."""
+        """Get the image and its ground truth at the given index."""
         file_name = self.file_names[idx]
         image = read_image(str(self.image_dir / file_name))
         ground_truth = read_image(str(self.ground_truth_dir / file_name))
@@ -64,7 +65,7 @@ class TrainDataset(Dataset):
         transforms = [
             # Scale from uint8 [0, 255] to float32 [0, 1]
             Lambda(lambda tup: tuple(i.float() / 255 for i in tup)),
-            # Threshold the output image
+            # Threshold the output image to get 0/1 labels
             Lambda(lambda tup: (tup[0], (tup[1] > 0.5).float())),
         ]
         return Compose(transforms)
@@ -74,7 +75,7 @@ class TestDataset(Dataset):
     """Dataset for the test data."""
 
     def __init__(self, root_dir: Path):
-        """Load the list of images in the dataset.
+        """Load the list of test images in the dataset.
 
         Args:
             root_dir: Path to the directory where the CIL data is extracted
@@ -90,7 +91,7 @@ class TestDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Get the item at the given index."""
+        """Get the image at the given index."""
         image = read_image(str(self.image_paths[idx]))
         return self.transform(image)
 
@@ -102,7 +103,11 @@ class TestDataset(Dataset):
 
 
 def get_randomizer() -> TransformType:
-    """Get random transformations for data augmentation."""
+    """Get the transformation for data augmentation.
+
+    This performs random operations that implicitly "augment" the data, by
+    creating completely new instances.
+    """
     transforms = [
         # Combine them along channels so that random transforms do the same
         # rotation, crop, etc. for both batches of input and output

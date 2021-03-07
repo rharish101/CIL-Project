@@ -21,8 +21,8 @@ from .model import UNet
 class Trainer:
     """Class to train the model."""
 
-    SAVE_NAME: Final = "model.pt"
-    CONFIG_NAME: Final = "config.toml"
+    SAVE_NAME: Final = "model.pt"  # for the model's weights
+    CONFIG_NAME: Final = "config.toml"  # for info on hyper-params
 
     def __init__(
         self,
@@ -31,7 +31,14 @@ class Trainer:
         weight_decay: float,
         val_split: float,
     ):
-        """Store config and initialize everything."""
+        """Store config and initialize everything.
+
+        Args:
+            data_dir: Path to the directory where the CIL data is extracted
+            learn_rate: The learning rate for the optimizer
+            weight_decay: The L2 weight decay for the optimizer
+            val_split: The fraction of training data to use for validation
+        """
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
@@ -65,7 +72,18 @@ class Trainer:
         log_steps: int,
         mixed_precision: bool = False,
     ) -> None:
-        """Train the model."""
+        """Train the model.
+
+        Args:
+            batch_size: The global batch size
+            max_epochs: The maximum epochs to train the model
+            max_learn_rate: The maximum learning rate (needed by the scheduler)
+            save_dir: Directory where to save the model's weights
+            save_steps: Step interval for saving the model's weights
+            log_dir: Directory where to log metrics
+            log_steps: Step interval for logging metrics
+            mixed_precision: Whether to use mixed precision training
+        """
         train_loader = DataLoader(
             self.train_dataset,
             batch_size=batch_size,
@@ -79,6 +97,8 @@ class Trainer:
         )
         randomizer = get_randomizer()
 
+        # Log to a timestamped directory, since we don't want to accidently
+        # overwrite older logs
         curr_date = datetime.now().astimezone()
         timestamped_log_dir = log_dir / curr_date.isoformat()
         timestamped_log_dir.mkdir(parents=True)
@@ -90,17 +110,19 @@ class Trainer:
             "max_epochs": max_epochs,
             "max_learn_rate": max_learn_rate,
             "mixed_precision": mixed_precision,
-            "date": datetime.now().astimezone(),
+            "date": curr_date,
         }
         for dest in save_dir, timestamped_log_dir:
             with open(dest / self.CONFIG_NAME, "w") as f:
                 toml.dump(config, f)
 
+        # Use separate summary writers so that training and validation losses
+        # can be viewed on the same graph in TensorBoard
         train_writer = SummaryWriter(str(timestamped_log_dir / "training"))
         val_writer = SummaryWriter(str(timestamped_log_dir / "validation"))
 
         # Iterate step-by-step for a combined progress bar, and for automatic
-        # step counting through enumerate.
+        # step counting through enumerate
         iterator = (
             data for epoch in range(max_epochs) for data in train_loader
         )
@@ -154,20 +176,32 @@ class Trainer:
                     "losses/regularization", self._get_l2_reg(), step
                 )
 
+                # Log a histogram for each tensor parameter in the model, to
+                # see if a parameter is training stably or not
                 for name, value in self.model.state_dict().items():
                     train_writer.add_histogram(name, value, step)
 
         self.save_weights(save_dir)
 
     def save_weights(self, save_dir: Path) -> None:
-        """Save the model's weights."""
+        """Save the model's weights.
+
+        Args:
+            save_dir: Directory where to save the model's weights
+        """
         if not save_dir.exists():
             save_dir.mkdir(parents=True)
         torch.save(self.model.state_dict(), save_dir / self.SAVE_NAME)
 
     @classmethod
     def load_weights(cls, model: Module, load_dir: Path) -> None:
-        """Load the model's weights."""
+        """Load the model's weights in-place.
+
+        Args:
+            model: The model whose weights are to be replaced in-place with the
+                loaded weights
+            load_dir: Directory from where to load the model's weights
+        """
         model.load_state_dict(torch.load(load_dir / cls.SAVE_NAME))
 
     def _get_l2_reg(self) -> torch.Tensor:
