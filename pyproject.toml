@@ -15,7 +15,9 @@ description = ""
 authors = ["Harish Rajagopal <harish.rajagopals@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.6.1"
+python = "^3.6.2"
+torch = "^1.8.0"
+typing-extensions = "^3.7.4"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.10.1"

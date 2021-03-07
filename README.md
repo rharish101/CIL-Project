@@ -14,7 +14,7 @@ This is a repository for the project submission of team SHAJ for the Computation
 [Poetry](https://python-poetry.org/) is used for conveniently installing and managing dependencies.
 [pre-commit](https://pre-commit.com/) is used for managing hooks that run before each commit, to ensure code quality and run some basic tests.
 
-1. *[Optional]* Create and activate a virtual environment with Python >= 3.6.1.
+1. *[Optional]* Create and activate a virtual environment with Python >= 3.6.2.
 
 2. Install Poetry globally (recommended), or in a virtual environment.
     Please refer to [Poetry's installation guide](https://python-poetry.org/docs/#installation) for recommended installation options.
