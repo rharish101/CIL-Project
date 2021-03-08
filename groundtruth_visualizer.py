@@ -13,14 +13,21 @@ def main(args: Namespace) -> None:
     root: Any = tkinter.Tk()
     root.files_index = 0
 
-    train_dir = args.data_dir / "training/training"
-    files = list((train_dir / "images").glob("*"))
+    if args.mode == "train":
+        train_dir = args.data_dir / "training/training"
+        image_dir = train_dir / "images"
+        ground_truth_dir = train_dir / "groundtruth"
+    else:
+        image_dir = args.data_dir / "test_images/test_images/"
+        ground_truth_dir = args.pred_dir
+
+    files = list(image_dir.glob("*"))
     superimposed_images = dict()
     for png in files:
         im_1 = Image.open(png, mode="r").convert("RGBA")
-        im_2 = Image.open(
-            train_dir / "groundtruth" / png.name, mode="r"
-        ).convert("RGBA")
+        im_2 = Image.open(ground_truth_dir / png.name, mode="r").convert(
+            "RGBA"
+        )
         superimposed_images[png] = ImageTk.PhotoImage(
             Image.blend(im_1, im_2, 0.4)
         )
@@ -69,5 +76,19 @@ if __name__ == "__main__":
         metavar="DIR",
         type=Path,
         help="Path to the directory where the CIL data is extracted",
+    )
+    parser.add_argument(
+        "-m",
+        "--mode",
+        choices=["train", "test"],
+        default="train",
+        help="The choice of dataset to visualize",
+    )
+    parser.add_argument(
+        "--pred-dir",
+        type=Path,
+        default="outputs",
+        help="Directory containing the model's predictions for the test data "
+        "(used only in the 'test' mode)",
     )
     main(parser.parse_args())
