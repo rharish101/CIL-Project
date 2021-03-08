@@ -142,7 +142,8 @@ class Trainer:
                 loaded weights
             load_dir: Directory from where to load the model's weights
         """
-        model.load_state_dict(torch.load(load_dir / cls.SAVE_NAME))
+        state_dict = torch.load(load_dir / cls.SAVE_NAME, map_location="cpu")
+        model.load_state_dict(state_dict)
 
     def _setup_dirs(
         self, save_dir: Path, log_dir: Path

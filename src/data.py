@@ -90,10 +90,11 @@ class TestDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.image_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
         """Get the image at the given index."""
-        image = read_image(str(self.image_paths[idx]))
-        return self.transform(image)
+        image_path = self.image_paths[idx]
+        image = read_image(str(image_path))
+        return self.transform(image), image_path.name
 
     @staticmethod
     def get_transform() -> TransformType:

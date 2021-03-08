@@ -80,3 +80,14 @@ The hyper-parameter config (including defaults) is saved as a TOML file named `c
 This implementation supports mixed-precision training.
 This can be enabled by setting the `mixed_precision` hyper-parameter in a config.
 Note that this will only provide significant speed-ups if your GPU(s) have special support for mixed-precision compute.
+
+### Inference
+The script `inference.py` generates predictions on the test data using a trained model.
+Run it as follows:
+```sh
+./inference.py
+```
+
+The output images are saved in the directory given by the `--output-dir` argument.
+By default, this directory is `outputs`.
+The images will be saved as PNG images with the file names corresponding to the input images.
