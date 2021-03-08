@@ -42,7 +42,7 @@ class Trainer:
             dataset, [len(dataset) - val_length, val_length]
         )
         self.train_loader = DataLoader(
-            self.train_dataset,
+            train_dataset,
             batch_size=config.batch_size,
             shuffle=True,
             pin_memory=True,
