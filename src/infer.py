@@ -49,15 +49,17 @@ class Inference:
         if not output_dir.exists():
             output_dir.mkdir(parents=True)
 
-        for images, names in tqdm(self.loader, desc="Inference"):
-            images = images.to(self.device)
+        with tqdm(total=len(self.dataset), desc="Inference") as progress_bar:
+            for images, names in self.loader:
+                images = images.to(self.device)
 
-            with autocast(enabled=self.config.mixed_precision):
-                logits = self.model(images)
+                with autocast(enabled=self.config.mixed_precision):
+                    logits = self.model(images)
 
-            predictions = (logits > 0).float()
-            outputs = (predictions * 255).squeeze(1).byte().cpu().numpy()
+                predictions = (logits > 0).float()
+                outputs = (predictions * 255).squeeze(1).byte().cpu().numpy()
 
-            for img, name in zip(outputs, names):
-                path = output_dir / name
-                Image.fromarray(img).save(path)
+                for img, name in zip(outputs, names):
+                    path = output_dir / name
+                    Image.fromarray(img).save(path)
+                    progress_bar.update()
