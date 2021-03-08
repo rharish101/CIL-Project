@@ -1,7 +1,7 @@
 """Class to train the model."""
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
 import toml
 import torch
@@ -14,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing_extensions import Final
 
+from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_randomizer
 from .model import UNet
 
@@ -24,97 +25,79 @@ class Trainer:
     SAVE_NAME: Final = "model.pt"  # for the model's weights
     CONFIG_NAME: Final = "config.toml"  # for info on hyper-params
 
-    def __init__(
-        self,
-        data_dir: Path,
-        learn_rate: float,
-        max_learn_rate: float,
-        weight_decay: float,
-        batch_size: int,
-        val_split: float,
-        mixed_precision: bool = False,
-    ):
+    def __init__(self, data_dir: Path, config: Config):
         """Store config and initialize everything.
 
         Args:
             data_dir: Path to the directory where the CIL data is extracted
-            learn_rate: The learning rate for the optimizer
-            max_learn_rate: The maximum learning rate (needed by the scheduler)
-            weight_decay: The L2 weight decay for the optimizer
-            batch_size: The global batch size
-            val_split: The fraction of training data to use for validation
-            mixed_precision: Whether to use mixed precision training
+            config: The hyper-param config
         """
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
         dataset = TrainDataset(data_dir)
-        val_length = int(len(dataset) * val_split)
+        val_length = int(len(dataset) * config.val_split)
         train_dataset, val_dataset = random_split(
             dataset, [len(dataset) - val_length, val_length]
         )
         self.train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
+            self.train_dataset,
+            batch_size=config.batch_size,
             shuffle=True,
             pin_memory=True,
         )
         self.val_loader = DataLoader(
             val_dataset,
-            batch_size=batch_size,
+            batch_size=config.batch_size,
             pin_memory=True,
         )
         self.randomizer = get_randomizer()
 
         self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS).to(self.device)
         self.optim = Adam(
-            self.model.parameters(), lr=learn_rate, weight_decay=weight_decay
+            self.model.parameters(),
+            lr=config.learn_rate,
+            weight_decay=config.weight_decay,
         )
-        self.scaler = GradScaler(enabled=mixed_precision)
         self.loss = BCEWithLogitsLoss()
 
+        max_steps = config.epochs * len(self.train_loader)
+        self.scheduler = OneCycleLR(
+            self.optim,
+            max_lr=config.max_learn_rate,
+            total_steps=max_steps,
+        )
+        self.scaler = GradScaler(enabled=config.mixed_precision)
+
         # Used when dumping hyper-params to a file
-        self.config: Final = {
-            "learn_rate": learn_rate,
-            "max_learn_rate": max_learn_rate,
-            "weight_decay": weight_decay,
-            "batch_size": batch_size,
-            "mixed_precision": mixed_precision,
-        }
+        self.config = config
 
     def train(
         self,
-        max_epochs: int,
         save_dir: Path,
-        save_steps: int,
         log_dir: Path,
+        save_steps: int,
         log_steps: int,
     ) -> None:
         """Train the model.
 
         Args:
-            max_epochs: The maximum epochs to train the model
             save_dir: Directory where to save the model's weights
-            save_steps: Step interval for saving the model's weights
             log_dir: Directory where to log metrics
+            save_steps: Step interval for saving the model's weights
             log_steps: Step interval for logging metrics
         """
-        config = {"max_epochs": max_epochs}
-        train_writer, val_writer = self._setup_dirs(save_dir, log_dir, config)
+        train_writer, val_writer = self._setup_dirs(save_dir, log_dir)
 
         # Iterate step-by-step for a combined progress bar, and for automatic
         # step counting through enumerate
         iterator = (
-            data for epoch in range(max_epochs) for data in self.train_loader
+            data
+            for epoch in range(self.config.epochs)
+            for data in self.train_loader
         )
-        max_steps = max_epochs * len(self.train_loader)
-
-        scheduler = OneCycleLR(
-            self.optim,
-            max_lr=self.config["max_learn_rate"],
-            total_steps=max_steps,
-        )
+        max_steps = self.config.epochs * len(self.train_loader)
 
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
@@ -125,14 +108,14 @@ class Trainer:
             image = image.to(self.device)
             ground_truth = ground_truth.to(self.device)
 
-            with autocast(enabled=self.config["mixed_precision"]):
+            with autocast(enabled=self.config.mixed_precision):
                 prediction = self.model(image)
                 loss = self.loss(prediction, ground_truth)
 
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optim)
             self.scaler.update()
-            scheduler.step()
+            self.scheduler.step()
 
             if step % save_steps == 0:
                 self.save_weights(save_dir)
@@ -162,7 +145,7 @@ class Trainer:
         model.load_state_dict(torch.load(load_dir / cls.SAVE_NAME))
 
     def _setup_dirs(
-        self, save_dir: Path, log_dir: Path, config: Dict[str, Any]
+        self, save_dir: Path, log_dir: Path
     ) -> Tuple[SummaryWriter, SummaryWriter]:
         """Setup the save and log directories and return summary writers.
 
@@ -179,7 +162,7 @@ class Trainer:
         timestamped_log_dir.mkdir(parents=True)
 
         # Save hyper-params as a TOML file for reference
-        config = {**self.config, **config, "date": curr_date}
+        config = {**vars(self.config), "date": curr_date}
         for dest in save_dir, timestamped_log_dir:
             with open(dest / self.CONFIG_NAME, "w") as f:
                 toml.dump(config, f)
@@ -209,7 +192,7 @@ class Trainer:
                 val_img = val_img.to(self.device)
                 val_gt = val_gt.to(self.device)
 
-                with autocast(enabled=self.config["mixed_precision"]):
+                with autocast(enabled=self.config.mixed_precision):
                     val_pred = self.model(val_img)
                     val_loss += self.loss(val_pred, val_gt)
 
