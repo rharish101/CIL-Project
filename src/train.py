@@ -50,6 +50,7 @@ class Trainer:
         self.val_loader = DataLoader(
             val_dataset,
             batch_size=config.batch_size,
+            # No shuffle as it won't make any difference
             pin_memory=True,
         )
         self.randomizer = get_randomizer()
@@ -60,6 +61,7 @@ class Trainer:
             lr=config.learn_rate,
             weight_decay=config.weight_decay,
         )
+        # Using logits directly is numerically more stable and efficient
         self.loss = BCEWithLogitsLoss()
 
         max_steps = config.epochs * len(self.train_loader)
@@ -142,7 +144,10 @@ class Trainer:
                 loaded weights
             load_dir: Directory from where to load the model's weights
         """
+        # Map to CPU manually, as saved weights might prefer to be on the GPU
+        # by default, which would crash if a GPU isn't available.
         state_dict = torch.load(load_dir / cls.SAVE_NAME, map_location="cpu")
+        # Loading a GPU model's state dict from a CPU state dict works
         model.load_state_dict(state_dict)
 
     def _setup_dirs(

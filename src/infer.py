@@ -56,10 +56,15 @@ class Inference:
                 with autocast(enabled=self.config.mixed_precision):
                     logits = self.model(images)
 
+                # Get binary output of either 0.0 or 1.0
+                # sigmoid(logits) > 0.5 => logits > 0
                 predictions = (logits > 0).float()
-                outputs = (predictions * 255).squeeze(1).byte().cpu().numpy()
+                # Convert float32 in [0, 1] to uint8 in [0, 255]
+                outputs = (predictions * 255).squeeze(1).byte()
+                # Pillow needs numpy ndarrays; it fails with PyTorch tensors
+                outputs_np = outputs.cpu().numpy()
 
-                for img, name in zip(outputs, names):
+                for img, name in zip(outputs_np, names):
                     path = output_dir / name
                     Image.fromarray(img).save(path)
                     progress_bar.update()
