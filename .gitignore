@@ -1,2 +1,6 @@
+# Python cache
 __pycache__/
 .mypy_cache/
+
+# Dump custom configs here
+configs/
