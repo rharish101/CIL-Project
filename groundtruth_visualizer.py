@@ -21,7 +21,7 @@ def main(args: Namespace) -> None:
         image_dir = args.data_dir / "test_images/test_images/"
         ground_truth_dir = args.pred_dir
 
-    files = list(image_dir.glob("*"))
+    files = sorted(image_dir.glob("*"))
     superimposed_images = dict()
     for png in files:
         im_1 = Image.open(png, mode="r").convert("RGBA")
