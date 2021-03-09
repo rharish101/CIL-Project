@@ -144,8 +144,8 @@ class Trainer:
 
             if step % log_steps == 0:
                 with torch.no_grad():
-                    acc = self._get_acc(prediction, ground_truth) / len(image)
-                    f1 = self._get_f1(prediction, ground_truth) / len(image)
+                    acc = self._get_acc(prediction, ground_truth)
+                    f1 = self._get_f1(prediction, ground_truth)
                     metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
                     self._log_metrics(train_writer, val_writer, metrics, step)
 
