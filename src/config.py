@@ -24,13 +24,13 @@ class Config:
         seed: The random seed for reproducibility
     """
 
-    learn_rate: float = 1e-3
-    max_learn_rate: float = 2e-3
+    learn_rate: float = 1e-4
+    max_learn_rate: float = 2e-4
     balanced_loss: bool = False
-    weight_decay: float = 2e-5
+    weight_decay: float = 5e-6
     train_batch_size: int = 16
     test_batch_size: int = 6
-    epochs: int = 25
+    epochs: int = 150
     val_split: float = 0.2
     mixed_precision: bool = False
     seed: int = 0
