@@ -1,4 +1,5 @@
 """Class to train the model."""
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
@@ -17,6 +18,20 @@ from typing_extensions import Final
 from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_randomizer
 from .model import UNet
+
+
+@dataclass
+class _Metrics:
+    """Uniform structure to hold losses and metrics.
+
+    Attributes:
+        loss: The classification loss
+        accuracy: The accuracy
+    """
+
+    loss: torch.Tensor = 0.0
+    accuracy: torch.Tensor = 0.0
+    f1_score: torch.Tensor = 0.0
 
 
 class Trainer:
@@ -123,7 +138,11 @@ class Trainer:
                 self.save_weights(save_dir)
 
             if step % log_steps == 0:
-                self._log_metrics(train_writer, val_writer, loss, step)
+                with torch.no_grad():
+                    acc = self._get_acc(prediction, ground_truth) / len(image)
+                    f1 = self._get_f1(prediction, ground_truth) / len(image)
+                    metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
+                    self._log_metrics(train_writer, val_writer, metrics, step)
 
         self.save_weights(save_dir)
 
@@ -187,10 +206,10 @@ class Trainer:
             loss += (param ** 2).sum()
         return loss
 
-    def _get_val_loss(self) -> torch.Tensor:
-        """Get the loss on the validation dataset."""
+    def _get_val_metrics(self) -> _Metrics:
+        """Get the metrics on the validation dataset."""
         with torch.no_grad():
-            val_loss = 0.0
+            metrics = _Metrics()
 
             for val_img, val_gt in tqdm(
                 self.val_loader, desc="Validating", leave=False
@@ -200,22 +219,65 @@ class Trainer:
 
                 with autocast(enabled=self.config.mixed_precision):
                     val_pred = self.model(val_img)
-                    val_loss += self.loss(val_pred, val_gt)
+                    metrics.loss += self.loss(val_pred, val_gt)
 
-            return val_loss / len(self.val_loader)
+                metrics.accuracy += self._get_acc(val_pred, val_gt)
+                metrics.f1_score += self._get_f1(val_pred, val_gt)
+
+            metrics.loss /= len(self.val_loader)
+            metrics.accuracy /= len(self.val_loader)
+            metrics.f1_score /= len(self.val_loader)
+
+        return metrics
+
+    @staticmethod
+    def _get_acc(logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Get the mean of the accuracies for each item in the batch."""
+        predictions = logits > 0
+        target_bool = target > 0.5
+        return (predictions == target_bool).float().mean()
+
+    @staticmethod
+    def _get_f1(logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Get the mean of the F1 scores for each item in the batch.
+
+        The F1 score is calculated per image, comparing the pixel
+        classifications across the entire image. Then the sum of F1 scores of
+        all images in the batch are returned.
+        """
+        predictions = logits > 0
+        target_bool = target > 0.5
+
+        true_pos = (predictions & target_bool).sum([1, 2, 3]).float()
+        false_pos = (predictions & ~target_bool).sum([1, 2, 3]).float()
+        false_neg = (~predictions & target_bool).sum([1, 2, 3]).float()
+
+        eps = torch.finfo(true_pos.dtype).eps
+        precision = true_pos / (true_pos + false_pos + eps)
+        recall = true_pos / (true_pos + false_neg + eps)
+        f1_score = 2 * precision * recall / (precision + recall + eps)
+
+        return f1_score.mean()
 
     def _log_metrics(
         self,
         train_writer: SummaryWriter,
         val_writer: SummaryWriter,
-        train_loss: torch.Tensor,
+        train_metrics: _Metrics,
         step: int,
     ) -> None:
         """Log metrics for both training and validation."""
-        train_writer.add_scalar("losses/classification", train_loss, step)
-        val_writer.add_scalar(
-            "losses/classification", self._get_val_loss(), step
-        )
+        val_metrics = self._get_val_metrics()
+
+        for key in vars(train_metrics):
+            if key == "loss":
+                tag = "losses/classification"
+            else:
+                tag = f"metrics/{key}"
+
+            train_writer.add_scalar(tag, getattr(train_metrics, key), step)
+            val_writer.add_scalar(tag, getattr(val_metrics, key), step)
+
         train_writer.add_scalar(
             "losses/regularization", self._get_l2_reg(), step
         )
