@@ -3,6 +3,8 @@
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
 
+from torch import manual_seed
+
 from src.config import load_config
 from src.train import Trainer
 
@@ -10,6 +12,7 @@ from src.train import Trainer
 def main(args: Namespace) -> None:
     """Run the main program."""
     config = load_config(args.config)
+    manual_seed(config.seed)
     trainer = Trainer(args.data_dir, config)
     trainer.train(
         args.save_dir,

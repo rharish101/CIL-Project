@@ -18,6 +18,7 @@ class Config:
         epochs: The no. of epochs to train the model
         val_split: The fraction of training data to use for validation
         mixed_precision: Whether to use mixed precision training
+        seed: The random seed for reproducibility
     """
 
     learn_rate: float = 1e-3
@@ -27,6 +28,7 @@ class Config:
     epochs: int = 25
     val_split: float = 0.2
     mixed_precision: bool = False
+    seed: int = 0
 
 
 def load_config(config_path: Optional[Path]) -> Config:
