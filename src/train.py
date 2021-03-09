@@ -116,6 +116,11 @@ class Trainer:
         )
         max_steps = self.config.epochs * len(self.train_loader)
 
+        # Pass a sample input to the model to log its computational graph
+        with torch.no_grad():
+            sample_images = next(iter(self.val_loader))[0].to(self.device)
+            train_writer.add_graph(self.model, sample_images)
+
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
