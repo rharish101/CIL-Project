@@ -44,6 +44,7 @@ class ConvBlock(Module):
             dropout: The probability of dropping out the inputs
         """
         super().__init__()
+        # Appropriate padding to keep output and input sizes equal
         padding = (kernel_size - 1) // 2
         self.block = Sequential(
             Dropout2d(dropout),
@@ -91,6 +92,7 @@ class ConvTBlock(Module):
             dropout: The probability of dropping out the inputs
         """
         super().__init__()
+        # Appropriate padding to keep output and input sizes equal
         padding = (kernel_size - 1) // 2
         self.block = Sequential(
             Dropout2d(dropout, inplace=True),
