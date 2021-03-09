@@ -76,8 +76,10 @@ class Trainer:
             lr=config.learn_rate,
             weight_decay=config.weight_decay,
         )
+
+        loss_weight = self._get_loss_weight() if config.balanced_loss else None
         # Using logits directly is numerically more stable and efficient
-        self.loss = BCEWithLogitsLoss()
+        self.loss = BCEWithLogitsLoss(pos_weight=loss_weight)
 
         max_steps = config.epochs * len(self.train_loader)
         self.scheduler = OneCycleLR(
@@ -291,3 +293,20 @@ class Trainer:
         # see if a parameter is training stably or not
         for name, value in self.model.state_dict().items():
             train_writer.add_histogram(name, value, step)
+
+    def _get_loss_weight(self) -> torch.Tensor:
+        """Get the scalar weight for the positive class in the loss.
+
+        This is calculated by the ratio of the negative class (class 0) to the
+        positive class (class 1).
+        """
+        n_pos: torch.Tensor = 0.0
+        n_neg: torch.Tensor = 0.0
+
+        for _, ground_truth in self.train_loader:
+            n_poss_curr = ground_truth.sum()
+            n_pos += n_poss_curr
+            n_neg += ground_truth.numel() - n_poss_curr
+
+        eps = torch.finfo(n_pos.dtype).eps
+        return n_neg / (n_pos + eps)

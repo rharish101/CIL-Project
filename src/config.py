@@ -13,6 +13,7 @@ class Config:
     Attributes:
         learn_rate: The learning rate for the optimizer
         max_learn_rate: The maximum learning rate (needed by the scheduler)
+        balanced_loss: Whether to balance the loss by inverse class frequency
         weight_decay: The L2 weight decay for the optimizer
         batch_size: The global batch size
         epochs: The no. of epochs to train the model
@@ -23,6 +24,7 @@ class Config:
 
     learn_rate: float = 1e-3
     max_learn_rate: float = 2e-3
+    balanced_loss: bool = False
     weight_decay: float = 2e-5
     batch_size: int = 16
     epochs: int = 25
