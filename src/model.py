@@ -149,7 +149,12 @@ class ResBlock(Module):
                 kernel_size=kernel_size,
                 dropout=dropout,
             ),
-            ConvBlock(out_channels, out_channels, kernel_size=kernel_size),
+            ConvBlock(
+                out_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                dropout=dropout,
+            ),
         )
         # No use of bias as the main block has a bias
         self.skip = Conv2d(
