@@ -51,14 +51,14 @@ class ConvBlock(Module):
                 out_channels,
                 kernel_size=kernel_size,
                 padding=padding,
-                bias=False,
+                bias=False,  # no use of bias as BatchNorm2d will delete it
             ),
             BatchNorm2d(out_channels),
             LeakyReLU(self.LEAKY_RELU_SLOPE),
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Get the block outputs."""
+        """Get the block's outputs."""
         return self.block(inputs)
 
 
@@ -96,14 +96,14 @@ class ConvTBlock(Module):
                 stride=2,
                 padding=padding,
                 output_padding=1,
-                bias=False,
+                bias=False,  # no use of bias as BatchNorm2d will delete it
             ),
             BatchNorm2d(out_channels),
             LeakyReLU(self.LEAKY_RELU_SLOPE, inplace=True),
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Get the block outputs."""
+        """Get the block's outputs."""
         return self.block(inputs)
 
 
