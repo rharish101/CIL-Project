@@ -15,8 +15,7 @@ from torchvision.transforms import (
 )
 from typing_extensions import Final
 
-CROP_SIZE: Final = 128  # height/width of model inputs
-ROTATION_RANGE: Final = 10  # max rotation in degrees for random rotation
+from .config import Config
 
 INPUT_CHANNELS: Final = 3
 OUTPUT_CHANNELS: Final = 1
@@ -103,7 +102,7 @@ class TestDataset(Dataset):
         return Lambda(lambda x: x.float() / 255)
 
 
-def get_randomizer() -> TransformType:
+def get_randomizer(config: Config) -> TransformType:
     """Get the transformation for data augmentation.
 
     This performs random operations that implicitly "augment" the data, by
@@ -113,8 +112,8 @@ def get_randomizer() -> TransformType:
         # Combine them along channels so that random transforms do the same
         # rotation, crop, etc. for both batches of input and output
         Lambda(lambda tup: torch.cat(tup, 1)),
-        RandomCrop(CROP_SIZE),
-        RandomRotation(ROTATION_RANGE),
+        RandomCrop(config.crop_size),
+        RandomRotation(config.rotation_range),
         RandomHorizontalFlip(),
         RandomVerticalFlip(),
         # Split combined tensor into input and output

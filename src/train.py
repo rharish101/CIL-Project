@@ -68,7 +68,7 @@ class Trainer:
             # No shuffle as it won't make any difference
             pin_memory=True,
         )
-        self.randomizer = get_randomizer()
+        self.randomizer = get_randomizer(config)
 
         self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config).to(
             self.device

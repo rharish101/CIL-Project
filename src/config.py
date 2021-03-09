@@ -23,6 +23,9 @@ class Config:
         val_split: The fraction of training data to use for validation
         mixed_precision: Whether to use mixed precision training
         seed: The random seed for reproducibility
+        crop_size: The height/width of the randomly cropped training inputs
+        rotation_range: The max absolute rotation in degrees for random
+            rotation of training inputs
     """
 
     learn_rate: float = 1e-4
@@ -36,6 +39,8 @@ class Config:
     val_split: float = 0.2
     mixed_precision: bool = False
     seed: int = 0
+    crop_size: int = 128
+    rotation_range: float = 10.0
 
 
 def load_config(config_path: Optional[Path]) -> Config:
