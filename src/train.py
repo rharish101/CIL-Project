@@ -70,7 +70,9 @@ class Trainer:
         )
         self.randomizer = get_randomizer()
 
-        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS).to(self.device)
+        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config).to(
+            self.device
+        )
         self.optim = Adam(
             self.model.parameters(),
             lr=config.learn_rate,

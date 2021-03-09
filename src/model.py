@@ -13,6 +13,8 @@ from torch.nn import (
 )
 from typing_extensions import Final
 
+from .config import Config
+
 
 class ConvBlock(Module):
     """Block combining Conv2d with non-linearities.
@@ -24,7 +26,6 @@ class ConvBlock(Module):
         * LeakyReLU
     """
 
-    DROPOUT: Final = 0.2
     LEAKY_RELU_SLOPE: Final = 0.2
 
     def __init__(
@@ -32,7 +33,7 @@ class ConvBlock(Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        dropout: bool = True,
+        dropout: float = 0.0,
     ):
         """Initialize the layers.
 
@@ -40,12 +41,12 @@ class ConvBlock(Module):
             in_channels: The no. of input channels
             out_channels: The no. of output channels
             kernel_size: The kernel size for Conv2d
-            dropout: Whether to use dropout or not (useful for input layers)
+            dropout: The probability of dropping out the inputs
         """
         super().__init__()
         padding = (kernel_size - 1) // 2
         self.block = Sequential(
-            Dropout2d(self.DROPOUT if dropout else 0.0),
+            Dropout2d(dropout),
             Conv2d(
                 in_channels,
                 out_channels,
@@ -72,11 +73,14 @@ class ConvTBlock(Module):
         * LeakyReLU
     """
 
-    DROPOUT: Final = 0.2
     LEAKY_RELU_SLOPE: Final = 0.2
 
     def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: int = 3
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        dropout: float = 0.0,
     ):
         """Initialize the layers.
 
@@ -84,11 +88,12 @@ class ConvTBlock(Module):
             in_channels: The no. of input channels
             out_channels: The no. of output channels
             kernel_size: The kernel size for ConvTranspose2d
+            dropout: The probability of dropping out the inputs
         """
         super().__init__()
         padding = (kernel_size - 1) // 2
         self.block = Sequential(
-            Dropout2d(self.DROPOUT, inplace=True),
+            Dropout2d(dropout, inplace=True),
             ConvTranspose2d(
                 in_channels,
                 out_channels,
@@ -124,7 +129,7 @@ class ResBlock(Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        dropout: bool = True,
+        dropout: float = 0.0,
     ):
         """Initialize the layers.
 
@@ -132,7 +137,7 @@ class ResBlock(Module):
             in_channels: The no. of input channels
             out_channels: The no. of output channels
             kernel_size: The kernel size for Conv2d
-            dropout: Whether to use dropout or not (useful for input layers)
+            dropout: The probability of dropping out the inputs
         """
         super().__init__()
         self.block = Sequential(
@@ -160,24 +165,48 @@ class UNet(Module):
     This architecture is adapted from: https://arxiv.org/abs/1505.04597
     """
 
-    def __init__(self, in_channels: int, out_channels: int):
-        """Initialize the model architecture."""
+    def __init__(self, in_channels: int, out_channels: int, config: Config):
+        """Initialize the model architecture.
+
+        Args:
+            in_channels: The no. of input channels
+            out_channels: The no. of output channels
+            config: The hyper-param config
+        """
         super().__init__()
         # Each block starts after the previous block, and terminates at a point
         # where either a skip connection starts or ends
         blocks = [
-            ResBlock(in_channels, 64, dropout=False),
-            Sequential(MaxPool2d(2), ResBlock(64, 128)),
-            Sequential(MaxPool2d(2), ResBlock(128, 256)),
-            Sequential(MaxPool2d(2), ResBlock(256, 512)),
+            ResBlock(in_channels, 64),
             Sequential(
-                MaxPool2d(2), ResBlock(512, 1024), ConvTBlock(1024, 512)
+                MaxPool2d(2), ResBlock(64, 128, dropout=config.dropout)
             ),
-            Sequential(ResBlock(1024, 512), ConvTBlock(512, 256)),
-            Sequential(ResBlock(512, 256), ConvTBlock(256, 128)),
-            Sequential(ResBlock(256, 128), ConvTBlock(128, 64)),
             Sequential(
-                ResBlock(128, 64), Conv2d(64, out_channels, kernel_size=1)
+                MaxPool2d(2), ResBlock(128, 256, dropout=config.dropout)
+            ),
+            Sequential(
+                MaxPool2d(2), ResBlock(256, 512, dropout=config.dropout)
+            ),
+            Sequential(
+                MaxPool2d(2),
+                ResBlock(512, 1024, dropout=config.dropout),
+                ConvTBlock(1024, 512, dropout=config.dropout),
+            ),
+            Sequential(
+                ResBlock(1024, 512, dropout=config.dropout),
+                ConvTBlock(512, 256, dropout=config.dropout),
+            ),
+            Sequential(
+                ResBlock(512, 256, dropout=config.dropout),
+                ConvTBlock(256, 128, dropout=config.dropout),
+            ),
+            Sequential(
+                ResBlock(256, 128, dropout=config.dropout),
+                ConvTBlock(128, 64, dropout=config.dropout),
+            ),
+            Sequential(
+                ResBlock(128, 64, dropout=config.dropout),
+                Conv2d(64, out_channels, kernel_size=1),
             ),
         ]
         self.blocks = ModuleList(blocks)

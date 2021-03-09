@@ -35,7 +35,9 @@ class Inference:
             pin_memory=True,
         )
 
-        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS).to(self.device)
+        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config).to(
+            self.device
+        )
         Trainer.load_weights(self.model, load_dir)
 
         self.config = config

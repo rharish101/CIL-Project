@@ -15,6 +15,7 @@ class Config:
         max_learn_rate: The maximum learning rate (needed by the scheduler)
         balanced_loss: Whether to balance the loss by inverse class frequency
         weight_decay: The L2 weight decay for the optimizer
+        dropout: The probability of dropping out the inputs to a conv block
         train_batch_size: The global batch size for training (training uses
             random cropping, so a larger batch size can be used)
         test_batch_size: The global batch size for testing
@@ -27,6 +28,7 @@ class Config:
     learn_rate: float = 1e-4
     max_learn_rate: float = 2e-4
     balanced_loss: bool = False
+    dropout: float = 0.2
     weight_decay: float = 5e-6
     train_batch_size: int = 16
     test_batch_size: int = 6
