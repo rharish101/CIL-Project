@@ -107,6 +107,53 @@ class ConvTBlock(Module):
         return self.block(inputs)
 
 
+class ResBlock(Module):
+    """Block with residual connections.
+
+    This block consists of:
+        * Skip connection start
+        * ConvBlock
+        * ConvBlock
+        * Skip connection joins
+
+    The skip connection simply consists of a 1x1 Conv2d.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        dropout: bool = True,
+    ):
+        """Initialize the layers.
+
+        Args:
+            in_channels: The no. of input channels
+            out_channels: The no. of output channels
+            kernel_size: The kernel size for Conv2d
+            dropout: Whether to use dropout or not (useful for input layers)
+        """
+        super().__init__()
+        self.block = Sequential(
+            ConvBlock(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                dropout=dropout,
+            ),
+            ConvBlock(out_channels, out_channels, kernel_size=kernel_size),
+        )
+        # No use of bias as the main block has a bias
+        self.skip = Conv2d(
+            in_channels, out_channels, kernel_size=1, bias=False
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Get the block's outputs."""
+        return self.block(inputs) + self.skip(inputs)
+
+
 class UNet(Module):
     """Class for the UNet architecture.
 
@@ -119,50 +166,18 @@ class UNet(Module):
         # Each block starts after the previous block, and terminates at a point
         # where either a skip connection starts or ends
         blocks = [
+            ResBlock(in_channels, 64, dropout=False),
+            Sequential(MaxPool2d(2), ResBlock(64, 128)),
+            Sequential(MaxPool2d(2), ResBlock(128, 256)),
+            Sequential(MaxPool2d(2), ResBlock(256, 512)),
             Sequential(
-                ConvBlock(in_channels, 64, dropout=False),
-                ConvBlock(64, 64),
+                MaxPool2d(2), ResBlock(512, 1024), ConvTBlock(1024, 512)
             ),
+            Sequential(ResBlock(1024, 512), ConvTBlock(512, 256)),
+            Sequential(ResBlock(512, 256), ConvTBlock(256, 128)),
+            Sequential(ResBlock(256, 128), ConvTBlock(128, 64)),
             Sequential(
-                MaxPool2d(2),
-                ConvBlock(64, 128),
-                ConvBlock(128, 128),
-            ),
-            Sequential(
-                MaxPool2d(2),
-                ConvBlock(128, 256),
-                ConvBlock(256, 256),
-            ),
-            Sequential(
-                MaxPool2d(2),
-                ConvBlock(256, 512),
-                ConvBlock(512, 512),
-            ),
-            Sequential(
-                MaxPool2d(2),
-                ConvBlock(512, 1024),
-                ConvBlock(1024, 1024),
-                ConvTBlock(1024, 512),
-            ),
-            Sequential(
-                ConvBlock(1024, 512),
-                ConvBlock(512, 512),
-                ConvTBlock(512, 256),
-            ),
-            Sequential(
-                ConvBlock(512, 256),
-                ConvBlock(256, 256),
-                ConvTBlock(256, 128),
-            ),
-            Sequential(
-                ConvBlock(256, 128),
-                ConvBlock(128, 128),
-                ConvTBlock(128, 64),
-            ),
-            Sequential(
-                ConvBlock(128, 64),
-                ConvBlock(64, 64),
-                Conv2d(64, out_channels, kernel_size=1),
+                ResBlock(128, 64), Conv2d(64, out_channels, kernel_size=1)
             ),
         ]
         self.blocks = ModuleList(blocks)
