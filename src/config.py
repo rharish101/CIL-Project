@@ -15,7 +15,9 @@ class Config:
         max_learn_rate: The maximum learning rate (needed by the scheduler)
         balanced_loss: Whether to balance the loss by inverse class frequency
         weight_decay: The L2 weight decay for the optimizer
-        batch_size: The global batch size
+        train_batch_size: The global batch size for training (training uses
+            random cropping, so a larger batch size can be used)
+        test_batch_size: The global batch size for testing
         epochs: The no. of epochs to train the model
         val_split: The fraction of training data to use for validation
         mixed_precision: Whether to use mixed precision training
@@ -26,7 +28,8 @@ class Config:
     max_learn_rate: float = 2e-3
     balanced_loss: bool = False
     weight_decay: float = 2e-5
-    batch_size: int = 16
+    train_batch_size: int = 16
+    test_batch_size: int = 6
     epochs: int = 25
     val_split: float = 0.2
     mixed_precision: bool = False

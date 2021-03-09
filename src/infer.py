@@ -31,7 +31,7 @@ class Inference:
         self.dataset = TestDataset(data_dir)
         self.loader = DataLoader(
             self.dataset,
-            batch_size=config.batch_size,
+            batch_size=config.test_batch_size,
             pin_memory=True,
         )
 

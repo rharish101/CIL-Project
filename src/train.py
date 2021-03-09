@@ -58,13 +58,13 @@ class Trainer:
         )
         self.train_loader = DataLoader(
             train_dataset,
-            batch_size=config.batch_size,
+            batch_size=config.train_batch_size,
             shuffle=True,
             pin_memory=True,
         )
         self.val_loader = DataLoader(
             val_dataset,
-            batch_size=config.batch_size,
+            batch_size=config.test_batch_size,
             # No shuffle as it won't make any difference
             pin_memory=True,
         )
