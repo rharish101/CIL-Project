@@ -51,10 +51,10 @@ However, this is not required if you have installed pre-commit globally.
 
 ### Hyper-Parameter Configuration
 Hyper-parameters can be specified through [TOML](https://toml.io/en/) configs.
-For example, to specify a batch size of 32 and a learning rate of 0.001, use the following config:
+For example, to specify a training batch size of 32 and a learning rate of 0.001, use the following config:
 ```toml
 learn_rate = 0.001
-batch_size = 32
+train_batch_size = 32
 ```
 
 You can store configs in a directory named `configs` located in the root of this repository.
