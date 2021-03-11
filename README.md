@@ -65,7 +65,7 @@ The available hyper-parameters, their documentation and default values are speci
 ### Training
 Run the script `train.py`:
 ```sh
-./train.py
+./train.py /path/to/CIL/dataset/
 ```
 
 The weights of trained models are saved with the `.pt` extension to the directory given by the `--save-dir` argument.
@@ -85,7 +85,7 @@ Note that this will only provide significant speed-ups if your GPU(s) have speci
 The script `inference.py` generates predictions on the test data using a trained model.
 Run it as follows:
 ```sh
-./inference.py
+./inference.py /path/to/image/dir/
 ```
 
 The output images are saved in the directory given by the `--output-dir` argument.
