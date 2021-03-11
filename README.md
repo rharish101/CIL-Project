@@ -91,3 +91,25 @@ Run it as follows:
 The output images are saved in the directory given by the `--output-dir` argument.
 By default, this directory is `outputs`.
 The images will be saved as PNG images with the file names corresponding to the input images.
+
+#### Submissions
+To create a submission from the inference outputs on the test data, run the script `submission.py`:
+```sh
+./submission.py
+```
+
+The inference images are loaded from the directory given by the `--image-dir` argument.
+The output CSV is saved in the directory given by the `--output-dir` argument.
+By default, both directories are `outputs`.
+
+### Visualization
+The script `visualizer.py` provides a GUI that layers black-and-white segmentations on top of the corresponding images.
+Run this as follows:
+```sh
+./visualizer.py /path/to/CIL/dataset
+```
+
+By default it visualizes the training data.
+To visualize the inference outputs for the test data, pass the `--mode test` argument.
+The inference images are loaded from the directory given by the `--pred-dir` argument.
+By default, this directory is `outputs`.
