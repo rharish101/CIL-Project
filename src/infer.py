@@ -48,6 +48,7 @@ class Inference:
         Args:
             output_dir: Directory where to dump the model's outputs
         """
+        output_dir = output_dir.expanduser()
         if not output_dir.exists():
             output_dir.mkdir(parents=True)
 

@@ -161,7 +161,8 @@ class Trainer:
         Args:
             save_dir: Directory where to save the model's weights
         """
-        torch.save(self.model.state_dict(), save_dir / self.SAVE_NAME)
+        save_path = save_dir.expanduser() / self.SAVE_NAME
+        torch.save(self.model.state_dict(), save_path)
 
     @classmethod
     def load_weights(cls, model: Module, load_dir: Path) -> None:
@@ -172,6 +173,7 @@ class Trainer:
                 loaded weights
             load_dir: Directory from where to load the model's weights
         """
+        load_dir = load_dir.expanduser()
         # Map to CPU manually, as saved weights might prefer to be on the GPU
         # by default, which would crash if a GPU isn't available.
         state_dict = torch.load(load_dir / cls.SAVE_NAME, map_location="cpu")
@@ -186,6 +188,9 @@ class Trainer:
         This creates two summary writers, each for training and validation,
         that log to a timestamped directory.
         """
+        save_dir = save_dir.expanduser()
+        log_dir = log_dir.expanduser()
+
         if not save_dir.exists():
             save_dir.mkdir(parents=True)
 

@@ -34,7 +34,7 @@ class TrainDataset(Dataset):
         Args:
             root_dir: Path to the directory where the CIL data is extracted
         """
-        train_dir = root_dir / "training/training"
+        train_dir = root_dir.expanduser() / "training/training"
         self.image_dir = train_dir / "images"
         self.ground_truth_dir = train_dir / "groundtruth"
 
@@ -79,7 +79,7 @@ class TestDataset(Dataset):
         Args:
             root_dir: Path to the directory where the CIL data is extracted
         """
-        image_dir = root_dir / "test_images/test_images"
+        image_dir = root_dir.expanduser() / "test_images/test_images"
         # Sort for reproducibility
         self.image_paths = sorted(image_dir.glob("*"))
 
