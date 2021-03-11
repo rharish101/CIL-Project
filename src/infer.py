@@ -16,11 +16,11 @@ from .train import Trainer
 class Inference:
     """Class to infer with the model."""
 
-    def __init__(self, data_dir: Path, load_dir: Path, config: Config):
+    def __init__(self, image_dir: Path, load_dir: Path, config: Config):
         """Store config and initialize everything.
 
         Args:
-            data_dir: Path to the directory where the CIL data is extracted
+            image_dir: Path to the directory containing the input images
             load_dir: Directory from where to load the model's weights
             config: The hyper-param config
         """
@@ -28,7 +28,7 @@ class Inference:
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
-        self.dataset = TestDataset(data_dir)
+        self.dataset = TestDataset(image_dir)
         self.loader = DataLoader(
             self.dataset,
             batch_size=config.test_batch_size,

@@ -10,7 +10,7 @@ from src.infer import Inference
 def main(args: Namespace) -> None:
     """Run the main program."""
     config = load_config(args.config)
-    inference = Inference(args.data_dir, args.load_dir, config)
+    inference = Inference(args.image_dir, args.load_dir, config)
     inference.infer(args.output_dir)
 
 
@@ -20,10 +20,10 @@ if __name__ == "__main__":
         formatter_class=ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "data_dir",
+        "image_dir",
         metavar="DIR",
         type=Path,
-        help="Path to the directory where the CIL data is extracted",
+        help="Path to the directory containing the input images",
     )
     parser.add_argument(
         "-c",

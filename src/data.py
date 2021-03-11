@@ -73,16 +73,14 @@ class TrainDataset(Dataset):
 class TestDataset(Dataset):
     """Dataset for the test data."""
 
-    def __init__(self, root_dir: Path):
+    def __init__(self, image_dir: Path):
         """Load the list of test images in the dataset.
 
         Args:
-            root_dir: Path to the directory where the CIL data is extracted
+            image_dir: Path to the directory containing the input images
         """
-        image_dir = root_dir.expanduser() / "test_images/test_images"
         # Sort for reproducibility
-        self.image_paths = sorted(image_dir.glob("*"))
-
+        self.image_paths = sorted(image_dir.expanduser().glob("*"))
         self.transform = self.get_transform()
 
     def __len__(self) -> int:
