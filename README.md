@@ -76,6 +76,16 @@ By default, the parent directory is `logs`.
 
 The hyper-parameter config (including defaults) is saved as a TOML file named `config.toml` in both the saved models directory and the timestamped log directory.
 
+#### Multi-GPU Training
+This implementation supports multi-GPU training on a single machine using PyTorch's [`torch.nn.DataParallel`](https://pytorch.org/tutorials/beginner/blitz/data_parallel_tutorial.html).
+
+For choosing which GPUs to train on, set the `CUDA_VISIBLE_DEVICES` environment variable when running a script as follows:
+```sh
+CUDA_VISIBLE_DEVICES=0,1,3 ./script.py
+```
+This selects the GPUs 0, 1 and 3 for training.
+By default, all available GPUs are chosen.
+
 #### Mixed Precision Training
 This implementation supports mixed-precision training.
 This can be enabled by setting the `mixed_precision` hyper-parameter in a config.
