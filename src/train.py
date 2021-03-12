@@ -7,7 +7,7 @@ from typing import Tuple
 import toml
 import torch
 from torch.cuda.amp import GradScaler, autocast
-from torch.nn import BCEWithLogitsLoss, Module
+from torch.nn import BCEWithLogitsLoss, DataParallel, Module
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader, random_split
@@ -70,19 +70,20 @@ class Trainer:
         )
         self.randomizer = get_randomizer(config)
 
-        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config).to(
-            self.device
-        )
-        self.optim = Adam(
-            self.model.parameters(),
-            lr=config.learn_rate,
-            weight_decay=config.weight_decay,
-        )
+        model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
+        if torch.cuda.device_count() > 1:
+            model = DataParallel(model)
+        self.model = model.to(self.device)
 
         loss_weight = self._get_loss_weight() if config.balanced_loss else None
         # Using logits directly is numerically more stable and efficient
         self.loss = BCEWithLogitsLoss(pos_weight=loss_weight)
 
+        self.optim = Adam(
+            self.model.parameters(),
+            lr=config.learn_rate,
+            weight_decay=config.weight_decay,
+        )
         max_steps = config.epochs * len(self.train_loader)
         self.scheduler = OneCycleLR(
             self.optim,
@@ -119,11 +120,6 @@ class Trainer:
             for data in self.train_loader
         )
         max_steps = self.config.epochs * len(self.train_loader)
-
-        # Pass a sample input to the model to log its computational graph
-        with torch.no_grad():
-            sample_images = next(iter(self.val_loader))[0].to(self.device)
-            train_writer.add_graph(self.model, sample_images)
 
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1

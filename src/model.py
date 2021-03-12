@@ -1,5 +1,6 @@
 """Model definitions."""
 import torch
+from torch.cuda.amp import autocast
 from torch.nn import (
     BatchNorm2d,
     Conv2d,
@@ -181,6 +182,8 @@ class UNet(Module):
             config: The hyper-param config
         """
         super().__init__()
+        self.config = config
+
         # Each block starts after the previous block, and terminates at a point
         # where either a skip connection starts or ends
         blocks = [
@@ -220,16 +223,18 @@ class UNet(Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Segment the inputs."""
-        # Stores all intermediate block outputs for skip-connections
-        outputs = [inputs]
+        # autocast is needed here since we're using DataParallel
+        with autocast(enabled=self.config.mixed_precision):
+            # Stores all intermediate block outputs for skip-connections
+            outputs = [inputs]
 
-        # Going down the U
-        for block in self.blocks[:5]:
-            outputs.append(block(outputs[-1]))
+            # Going down the U
+            for block in self.blocks[:5]:
+                outputs.append(block(outputs[-1]))
 
-        # Going up the U
-        for i, block in enumerate(self.blocks[5:]):
-            combined = torch.cat([outputs[4 - i], outputs[-1]], -3)
-            outputs.append(block(combined))
+            # Going up the U
+            for i, block in enumerate(self.blocks[5:]):
+                combined = torch.cat([outputs[4 - i], outputs[-1]], -3)
+                outputs.append(block(combined))
 
-        return outputs[-1]
+            return outputs[-1]
