@@ -10,10 +10,14 @@ from PIL import Image, ImageTk
 class Visualizer:
     """The class for the visualizer."""
 
-    def __init__(self, image_dir: Path, ground_truth_dir: Path, prediction_dir: Path):
+    def __init__(
+        self, image_dir: Path, ground_truth_dir: Path, prediction_dir: Path
+    ):
         """Initialize the GUI."""
         self.root = tkinter.Tk()
         self.files_index = 0
+
+        # testing who I commit as
 
         self.files = sorted(image_dir.glob("*"))
         self.superimposed_images = dict()
