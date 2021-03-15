@@ -14,6 +14,7 @@ class Visualizer:
         """Initialize the GUI."""
         self.root = tkinter.Tk()
         self.files_index = 0
+        this is crap
 
         self.files = sorted(image_dir.glob("*"))
         self.superimposed_images = dict()
