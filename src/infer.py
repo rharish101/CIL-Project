@@ -4,6 +4,7 @@ from pathlib import Path
 import torch
 from PIL import Image
 from torch.cuda.amp import autocast
+from torch.nn import DataParallel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -35,9 +36,10 @@ class Inference:
             pin_memory=True,
         )
 
-        self.model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config).to(
-            self.device
-        )
+        model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
+        if torch.cuda.device_count() > 1:
+            model = DataParallel(model)
+        self.model = model.to(self.device)
         Trainer.load_weights(self.model, load_dir)
 
         self.config = config
