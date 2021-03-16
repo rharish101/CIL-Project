@@ -114,12 +114,22 @@ By default, both directories are `outputs`.
 
 ### Visualization
 The script `visualizer.py` provides a GUI that layers black-and-white segmentations on top of the corresponding images.
+Additionally, it can also visualize the model's predictions in green to compare them with the ground truth.
 Run this as follows:
 ```sh
 ./visualizer.py /path/to/CIL/dataset
 ```
 
-By default it visualizes the training data.
-To visualize the inference outputs for the test data, pass the `--mode test` argument.
-The inference images are loaded from the directory given by the `--pred-dir` argument.
-By default, this directory is `outputs`.
+By default, this visualizes the training data.
+To visualize the inference outputs for the training data, run it as follows:
+```sh
+./visualizer.py /path/to/CIL/dataset --pred-dir /path/to/model/outputs
+```
+Here, the inference images are loaded from the directory given by the `--pred-dir` argument.
+
+To visualize the inference outputs for the test data, run it as follows:
+```sh
+./visualizer.py /path/to/CIL/dataset --mode test --pred-dir /path/to/model/outputs
+```
+For the test data, you can't visualize the ground truth (because it doesn't exist!), and hence the inference outputs are used as "ground truth".
+Therefore, the `--pred-dir` argument is necessary in test mode.
