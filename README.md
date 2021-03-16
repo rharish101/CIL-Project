@@ -46,7 +46,7 @@ To view the list of all positional and optional arguments for a script `script.p
     pre-commit install
     ```
 
-**NOTE**: You need to be inside the virtual environment where you installed the above dependencies every time you commit.
+**NOTE:** You need to be inside the virtual environment where you installed the above dependencies every time you commit.
 However, this is not required if you have installed pre-commit globally.
 
 ### Hyper-Parameter Configuration
@@ -61,6 +61,9 @@ You can store configs in a directory named `configs` located in the root of this
 It has an entry in the [`.gitignore`](./.gitignore) file so that custom configs aren't picked up by git.
 
 The available hyper-parameters, their documentation and default values are specified in the `Config` class in the file [`src/config.py`](./src/config.py).
+
+**NOTE:** You do not need to mention every single hyper-parameter in a config.
+In such a case, the missing ones will use their default values.
 
 ### Training
 Run the script `train.py`:
@@ -97,6 +100,8 @@ Run it as follows:
 ```sh
 ./inference.py /path/to/image/dir/
 ```
+
+**NOTE:** Here, you need to give the path to the directory containing the input images, as opposed to the root directory of the CIL dataset.
 
 The output images are saved in the directory given by the `--output-dir` argument.
 By default, this directory is `outputs`.
