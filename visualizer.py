@@ -85,17 +85,17 @@ class Visualizer:
 def main(args: Namespace) -> None:
     """Run the main program."""
     if args.mode == "train":
-        train_dir = args.data_dir / "training/training"
+        train_dir = args.data_dir.expanduser() / "training/training"
         image_dir = train_dir / "images"
         ground_truth_dir = train_dir / "groundtruth"
-        prediction_dir = args.pred_dir
+        prediction_dir = args.pred_dir.expanduser()
     else:
-        image_dir = args.data_dir / "test_images/test_images/"
+        image_dir = args.data_dir.expanduser() / "test_images/test_images/"
         if args.pred_dir is None:
             raise ValueError(
                 f"{args.mode} mode requires the prediction directory"
             )
-        ground_truth_dir = args.pred_dir
+        ground_truth_dir = args.pred_dir.expanduser()
         prediction_dir = None
 
     gui = Visualizer(image_dir, ground_truth_dir, prediction_dir)
