@@ -71,9 +71,7 @@ class Trainer:
         self.randomizer = get_randomizer(config)
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
-        if torch.cuda.device_count() > 1:
-            model = DataParallel(model)
-        self.model = model.to(self.device)
+        self.model = DataParallel(model).to(self.device)
 
         loss_weight = self._get_loss_weight() if config.balanced_loss else None
         # Using logits directly is numerically more stable and efficient

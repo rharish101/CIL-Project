@@ -37,9 +37,7 @@ class Inference:
         )
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
-        if torch.cuda.device_count() > 1:
-            model = DataParallel(model)
-        self.model = model.to(self.device)
+        self.model = DataParallel(model).to(self.device)
         Trainer.load_weights(self.model, load_dir)
 
         self.config = config
