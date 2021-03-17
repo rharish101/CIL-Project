@@ -71,10 +71,11 @@ Run the script `train.py`:
 ./train.py /path/to/CIL/dataset/
 ```
 
-The weights of trained models are saved with the `.pt` extension to the directory given by the `--save-dir` argument.
-By default, this directory is `saved_models`.
+The weights of trained models are saved with the `.pt` extension inside an ISO 8601 timestamped subdirectory, which is stored in a parent directory (as given by the `--save-dir` argument).
+By default, the parent directory is `saved_models`.
 
 Training logs are by default stored inside an ISO 8601 timestamped subdirectory, which is stored in a parent directory (as given by the `--log-dir` argument).
+The timestamp will be the same one as the one where the model weights are saved.
 By default, the parent directory is `logs`.
 
 The hyper-parameter config (including defaults) is saved as a TOML file named `config.toml` in both the saved models directory and the timestamped log directory.
