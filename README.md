@@ -99,10 +99,11 @@ Note that this will only provide significant speed-ups if your GPU(s) have speci
 The script `inference.py` generates predictions on the test data using a trained model.
 Run it as follows:
 ```sh
-./inference.py /path/to/image/dir/
+./inference.py /path/to/image/dir/ /path/to/save/dir/
 ```
 
 **NOTE:** Here, you need to give the path to the directory containing the input images, as opposed to the root directory of the CIL dataset.
+Also, you need to give the path to the directory containing the saved model's weights.
 
 The output images are saved in the directory given by the `--output-dir` argument.
 By default, this directory is `outputs`.

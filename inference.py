@@ -21,21 +21,21 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "image_dir",
-        metavar="DIR",
+        metavar="IMAGE_DIR",
         type=Path,
         help="Path to the directory containing the input images",
+    )
+    parser.add_argument(
+        "load_dir",
+        metavar="LOAD_DIR",
+        type=Path,
+        help="Directory from where to load the model's weights",
     )
     parser.add_argument(
         "-c",
         "--config",
         type=Path,
         help="Path to a TOML config containing hyper-parameter values",
-    )
-    parser.add_argument(
-        "--load-dir",
-        type=Path,
-        default="saved_models",
-        help="Directory from where to load the model's weights",
     )
     parser.add_argument(
         "--output-dir",
