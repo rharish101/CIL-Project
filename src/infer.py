@@ -52,6 +52,9 @@ class Inference:
         if not output_dir.exists():
             output_dir.mkdir(parents=True)
 
+        # Turn off batch-norm updates
+        self.model.eval()
+
         with tqdm(total=len(self.dataset), desc="Inference") as progress_bar:
             for images, names in self.loader:
                 images = images.to(self.device)

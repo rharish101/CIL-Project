@@ -124,6 +124,8 @@ class Trainer:
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
+            # Turn on batch-norm updates
+            self.model.train()
             self.optim.zero_grad()
 
             image, ground_truth = self.randomizer((image, ground_truth))
@@ -229,6 +231,9 @@ class Trainer:
 
     def _get_val_metrics(self) -> _Metrics:
         """Get the metrics on the validation dataset."""
+        # Turn off batch-norm updates
+        self.model.eval()
+
         with torch.no_grad():
             metrics = _Metrics()
 
