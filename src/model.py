@@ -2,6 +2,7 @@
 import torch
 from torch.cuda.amp import autocast
 from torch.nn import (
+    AdaptiveAvgPool2d,
     BatchNorm2d,
     Conv2d,
     ConvTranspose2d,
@@ -12,6 +13,7 @@ from torch.nn import (
     ModuleList,
     Sequential,
 )
+from torch.nn.utils import spectral_norm as spectralize
 from typing_extensions import Final
 
 from .config import Config
@@ -35,6 +37,7 @@ class ConvBlock(Module):
         out_channels: int,
         kernel_size: int = 3,
         dropout: float = 0.0,
+        spectral_norm: bool = False,
     ):
         """Initialize the layers.
 
@@ -43,19 +46,24 @@ class ConvBlock(Module):
             out_channels: The no. of output channels
             kernel_size: The kernel size for Conv2d
             dropout: The probability of dropping out the inputs
+            spectral_norm: Whether to use spectral normalization
         """
         super().__init__()
         # Appropriate padding to keep output and input sizes equal
         padding = (kernel_size - 1) // 2
+        conv_layer = Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=False,  # no use of bias as BatchNorm2d will delete it
+        )
+        if spectral_norm:
+            conv_layer = spectralize(conv_layer)
+
         self.block = Sequential(
             Dropout2d(dropout),
-            Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                padding=padding,
-                bias=False,  # no use of bias as BatchNorm2d will delete it
-            ),
+            conv_layer,
             BatchNorm2d(out_channels),
             LeakyReLU(self.LEAKY_RELU_SLOPE),
         )
@@ -133,6 +141,7 @@ class ResBlock(Module):
         out_channels: int,
         kernel_size: int = 3,
         dropout: float = 0.0,
+        spectral_norm: bool = False,
     ):
         """Initialize the layers.
 
@@ -141,6 +150,7 @@ class ResBlock(Module):
             out_channels: The no. of output channels
             kernel_size: The kernel size for Conv2d
             dropout: The probability of dropping out the inputs
+            spectral_norm: Whether to use spectral normalization
         """
         super().__init__()
         self.block = Sequential(
@@ -149,18 +159,22 @@ class ResBlock(Module):
                 out_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
+                spectral_norm=spectral_norm,
             ),
             ConvBlock(
                 out_channels,
                 out_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
+                spectral_norm=spectral_norm,
             ),
         )
         # No use of bias as the main block has a bias
         self.skip = Conv2d(
             in_channels, out_channels, kernel_size=1, bias=False
         )
+        if spectral_norm:
+            self.skip = spectralize(self.skip)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Get the block's outputs."""
@@ -190,38 +204,38 @@ class UNet(Module):
         down_blocks = [
             ResBlock(in_channels, 64),
             Sequential(
-                MaxPool2d(2), ResBlock(64, 128, dropout=config.dropout)
+                MaxPool2d(2), ResBlock(64, 128, dropout=config.gen_dropout)
             ),
             Sequential(
-                MaxPool2d(2), ResBlock(128, 256, dropout=config.dropout)
+                MaxPool2d(2), ResBlock(128, 256, dropout=config.gen_dropout)
             ),
             Sequential(
-                MaxPool2d(2), ResBlock(256, 512, dropout=config.dropout)
+                MaxPool2d(2), ResBlock(256, 512, dropout=config.gen_dropout)
             ),
         ]
         self.down_blocks = ModuleList(down_blocks)
 
         self.bottleneck = Sequential(
             MaxPool2d(2),
-            ResBlock(512, 1024, dropout=config.dropout),
-            ConvTBlock(1024, 512, dropout=config.dropout),
+            ResBlock(512, 1024, dropout=config.gen_dropout),
+            ConvTBlock(1024, 512, dropout=config.gen_dropout),
         )
 
         up_blocks = [
             Sequential(
-                ResBlock(1024, 512, dropout=config.dropout),
-                ConvTBlock(512, 256, dropout=config.dropout),
+                ResBlock(1024, 512, dropout=config.gen_dropout),
+                ConvTBlock(512, 256, dropout=config.gen_dropout),
             ),
             Sequential(
-                ResBlock(512, 256, dropout=config.dropout),
-                ConvTBlock(256, 128, dropout=config.dropout),
+                ResBlock(512, 256, dropout=config.gen_dropout),
+                ConvTBlock(256, 128, dropout=config.gen_dropout),
             ),
             Sequential(
-                ResBlock(256, 128, dropout=config.dropout),
-                ConvTBlock(128, 64, dropout=config.dropout),
+                ResBlock(256, 128, dropout=config.gen_dropout),
+                ConvTBlock(128, 64, dropout=config.gen_dropout),
             ),
             Sequential(
-                ResBlock(128, 64, dropout=config.dropout),
+                ResBlock(128, 64, dropout=config.gen_dropout),
                 Conv2d(64, out_channels, kernel_size=1),
             ),
         ]
@@ -246,3 +260,51 @@ class UNet(Module):
                 output = block(combined)
 
             return output
+
+
+class Critic(Module):
+    """Class for the patch critic architecture.
+
+    Patch-discriminators are described in: https://arxiv.org/abs/1611.07004.
+    Spectral normalization is described here: https://arxiv.org/abs/1802.05957.
+    """
+
+    def __init__(self, in_channels: int, config: Config):
+        """Initialize the model architecture.
+
+        Args:
+            in_channels: The no. of input channels
+            config: The hyper-param config
+        """
+        super().__init__()
+        self.config = config
+
+        # Architecture kept similar to the UNet's first half
+        self.model = Sequential(
+            ResBlock(in_channels, 64, spectral_norm=True),
+            MaxPool2d(2),
+            ResBlock(64, 128, dropout=config.crit_dropout, spectral_norm=True),
+            MaxPool2d(2),
+            ResBlock(
+                128, 256, dropout=config.crit_dropout, spectral_norm=True
+            ),
+            MaxPool2d(2),
+            ResBlock(
+                256, 512, dropout=config.crit_dropout, spectral_norm=True
+            ),
+            MaxPool2d(2),
+            ResBlock(
+                512, 1024, dropout=config.crit_dropout, spectral_norm=True
+            ),
+            # Convert to a single output channel
+            ConvBlock(
+                1024, 1, dropout=config.crit_dropout, spectral_norm=True
+            ),
+            AdaptiveAvgPool2d(1),  # global average pooling
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Return the critic's output."""
+        # autocast is needed here since we're using DataParallel
+        with autocast(enabled=self.config.mixed_precision):
+            return self.model(inputs).flatten(1)

@@ -18,7 +18,7 @@ from typing_extensions import Final
 
 from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_file_paths
-from .model import UNet
+from .model import Critic, UNet
 from .soft_dice_loss import soft_dice_loss
 
 
@@ -28,19 +28,25 @@ class _Metrics:
 
     Attributes:
         loss: The classification loss
+        wass: The Wasserstein distance
         accuracy: The accuracy
         f1_score: The F1 score
     """
 
     loss: torch.Tensor = 0.0
+    wass: torch.Tensor = 0.0
     accuracy: torch.Tensor = 0.0
     f1_score: torch.Tensor = 0.0
 
 
 class Trainer:
-    """Class to train the model."""
+    """Class to train the WGAN.
 
-    SAVE_NAME: Final = "model.pt"  # for the model's weights
+    Original paper: https://arxiv.org/abs/1701.07875.
+    """
+
+    GEN_SAVE_NAME: Final = "generator.pt"  # for the generator's weights
+    CRIT_SAVE_NAME: Final = "critic.pt"  # for the critic's weights
     CONFIG_NAME: Final = "config.toml"  # for info on hyper-params
 
     def __init__(self, data_dir: Path, config: Config):
@@ -82,9 +88,6 @@ class Trainer:
             pin_memory=True,
         )
 
-        model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
-        self.model = DataParallel(model).to(self.device)
-
         if config.loss == "logit_bce":
             loss_weight = (
                 self._get_loss_weight() if config.balanced_loss else None
@@ -94,21 +97,93 @@ class Trainer:
         elif config.loss == "soft_dice":
             self.loss = soft_dice_loss
 
-        self.optim = Adam(
-            self.model.parameters(),
-            lr=config.learn_rate,
-            weight_decay=config.weight_decay,
+        generator = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
+        self.generator = DataParallel(generator).to(self.device)
+        self.gen_optim = Adam(
+            self.generator.parameters(),
+            lr=config.gen_learn_rate,
+            weight_decay=config.gen_weight_decay,
         )
         max_steps = config.epochs * len(self.train_loader)
-        self.scheduler = OneCycleLR(
-            self.optim,
-            max_lr=config.max_learn_rate,
+        self.gen_scheduler = OneCycleLR(
+            self.gen_optim,
+            max_lr=config.max_gen_learn_rate,
             total_steps=max_steps,
         )
+
+        critic = Critic(OUTPUT_CHANNELS, config)
+        self.critic = DataParallel(critic).to(self.device)
+        self.crit_optim = Adam(
+            self.critic.parameters(),
+            lr=config.crit_learn_rate,
+            weight_decay=config.crit_weight_decay,
+        )
+        self.crit_scheduler = OneCycleLR(
+            self.crit_optim,
+            max_lr=config.max_crit_learn_rate,
+            total_steps=max_steps * config.crit_steps,
+        )
+
         self.scaler = GradScaler(enabled=config.mixed_precision)
 
         # Used when dumping hyper-params to a file
         self.config = config
+
+    def _train_step_gan(
+        self, image: torch.Tensor, ground_truth: torch.Tensor
+    ) -> _Metrics:
+        """Run a single training step for the GAN."""
+        # Turn on batch-norm updates for the generator
+        self.generator.train()
+        self.gen_optim.zero_grad()
+
+        with autocast(enabled=self.config.mixed_precision):
+            prediction = self.generator(image)
+            loss = self.loss(prediction, ground_truth)
+
+        # Turn on batch-norm updates for the critic
+        self.critic.train()
+        for _ in range(self.config.crit_steps):
+            self._train_step_critic(prediction, ground_truth)
+
+        # Turn off batch-norm updates for the critic, as we're just using it
+        # for getting the Wasserstein distance
+        self.critic.eval()
+        with autocast(enabled=self.config.mixed_precision):
+            fake_out = self.critic(prediction)
+            real_out = self.critic(ground_truth)
+            wass_dist = (real_out - fake_out).mean()
+            total_loss = loss + self.config.wass_weight * wass_dist
+
+        self.scaler.scale(total_loss).backward()
+        self.scaler.step(self.gen_optim)
+        self.scaler.update()
+        self.gen_scheduler.step()
+
+        acc = self._get_acc(prediction, ground_truth)
+        f1 = self._get_f1(prediction, ground_truth)
+        return _Metrics(loss=loss, wass=wass_dist, accuracy=acc, f1_score=f1)
+
+    def _train_step_critic(
+        self, prediction: torch.Tensor, ground_truth: torch.Tensor
+    ) -> None:
+        """Run a single training step for the critic."""
+        self.crit_optim.zero_grad()
+
+        with autocast(enabled=self.config.mixed_precision):
+            # Detach inputs so that PyTorch doesn't propagate gradients behind
+            # the critic's inputs. Otherwise, after optimizing the critic, the
+            # generator's computational graph will be erased.
+            fake_out = self.critic(prediction.detach())
+            real_out = self.critic(ground_truth)
+
+            wass_dist = real_out - fake_out
+            loss = (-wass_dist).mean()
+
+        self.scaler.scale(loss).backward()
+        self.scaler.step(self.crit_optim)
+        self.scaler.update()
+        self.crit_scheduler.step()
 
     def train(
         self,
@@ -120,9 +195,9 @@ class Trainer:
         """Train the model.
 
         Args:
-            save_dir: Directory where to save the model's weights
+            save_dir: Directory where to save all models' weights
             log_dir: Directory where to log metrics
-            save_steps: Step interval for saving the model's weights
+            save_steps: Step interval for saving all models' weights
             log_steps: Step interval for logging metrics
         """
         train_writer, val_writer, timestamped_save_dir = self._setup_dirs(
@@ -141,58 +216,51 @@ class Trainer:
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
-            # Turn on batch-norm updates
-            self.model.train()
-            self.optim.zero_grad()
-
             image = image.to(self.device)
             ground_truth = ground_truth.to(self.device)
 
-            with autocast(enabled=self.config.mixed_precision):
-                prediction = self.model(image)
-                loss = self.loss(prediction, ground_truth)
-
-            self.scaler.scale(loss).backward()
-            self.scaler.step(self.optim)
-            self.scaler.update()
-            self.scheduler.step()
+            metrics = self._train_step_gan(image, ground_truth)
 
             if step % save_steps == 0:
                 self.save_weights(timestamped_save_dir)
 
             if step % log_steps == 0:
                 with torch.no_grad():
-                    acc = self._get_acc(prediction, ground_truth)
-                    f1 = self._get_f1(prediction, ground_truth)
-                    metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
                     self._log_metrics(train_writer, val_writer, metrics, step)
 
         self.save_weights(timestamped_save_dir)
 
     def save_weights(self, save_dir: Path) -> None:
-        """Save the model's weights.
+        """Save all models' weights.
 
         Args:
-            save_dir: Directory where to save the model's weights
+            save_dir: Directory where to save the weights
         """
-        save_path = save_dir.expanduser() / self.SAVE_NAME
-        torch.save(self.model.state_dict(), save_path)
+        save_dir = save_dir.expanduser()
+        for model, name in [
+            (self.generator, self.GEN_SAVE_NAME),
+            (self.critic, self.CRIT_SAVE_NAME),
+        ]:
+            save_path = save_dir / name
+            torch.save(model.state_dict(), save_path)
 
     @classmethod
-    def load_weights(cls, model: Module, load_dir: Path) -> None:
-        """Load the model's weights in-place.
+    def load_weights(cls, generator: Module, load_dir: Path) -> None:
+        """Load the generator's weights in-place.
 
         Args:
-            model: The model whose weights are to be replaced in-place with the
-                loaded weights
+            generator: The generator whose weights are to be replaced in-place
+                with the loaded weights
             load_dir: Directory from where to load the model's weights
         """
         load_dir = load_dir.expanduser()
         # Map to CPU manually, as saved weights might prefer to be on the GPU
         # by default, which would crash if a GPU isn't available.
-        state_dict = torch.load(load_dir / cls.SAVE_NAME, map_location="cpu")
+        state_dict = torch.load(
+            load_dir / cls.GEN_SAVE_NAME, map_location="cpu"
+        )
         # Loading a GPU model's state dict from a CPU state dict works
-        model.load_state_dict(state_dict)
+        generator.load_state_dict(state_dict)
 
     def _setup_dirs(
         self, save_dir: Path, log_dir: Path
@@ -246,17 +314,19 @@ class Trainer:
 
         return train_writer, val_writer, timestamped_save_dir
 
-    def _get_l2_reg(self) -> torch.Tensor:
+    @staticmethod
+    def _get_l2_reg(model: Module) -> torch.Tensor:
         """Get the L2 regularization value for the model."""
         loss = 0
-        for param in self.model.parameters():
+        for param in model.parameters():
             loss += (param ** 2).sum()
         return loss
 
     def _get_val_metrics(self) -> _Metrics:
         """Get the metrics on the validation dataset."""
         # Turn off batch-norm updates
-        self.model.eval()
+        self.generator.eval()
+        self.critic.eval()
 
         with torch.no_grad():
             metrics = _Metrics()
@@ -268,13 +338,18 @@ class Trainer:
                 val_gt = val_gt.to(self.device)
 
                 with autocast(enabled=self.config.mixed_precision):
-                    val_pred = self.model(val_img)
+                    val_pred = self.generator(val_img)
                     metrics.loss += self.loss(val_pred, val_gt)
+
+                    fake_out = self.critic(val_pred)
+                    real_out = self.critic(val_gt)
+                    metrics.wass = (real_out - fake_out).mean()
 
                 metrics.accuracy += self._get_acc(val_pred, val_gt)
                 metrics.f1_score += self._get_f1(val_pred, val_gt)
 
             metrics.loss /= len(self.val_loader)
+            metrics.wass /= len(self.val_loader)
             metrics.accuracy /= len(self.val_loader)
             metrics.f1_score /= len(self.val_loader)
 
@@ -322,6 +397,8 @@ class Trainer:
         for key in vars(train_metrics):
             if key == "loss":
                 tag = "losses/classification"
+            elif key == "wass":
+                tag = "losses/wasserstein"
             else:
                 tag = f"metrics/{key}"
 
@@ -329,13 +406,22 @@ class Trainer:
             val_writer.add_scalar(tag, getattr(val_metrics, key), step)
 
         train_writer.add_scalar(
-            "losses/regularization", self._get_l2_reg(), step
+            "losses/generator_regularization",
+            self._get_l2_reg(self.generator),
+            step,
+        )
+        train_writer.add_scalar(
+            "losses/critic_regularization", self._get_l2_reg(self.critic), step
         )
 
-        # Log a histogram for each tensor parameter in the model, to
+        # Log a histogram for each tensor parameter in the models, to
         # see if a parameter is training stably or not
-        for name, value in self.model.state_dict().items():
-            train_writer.add_histogram(name, value, step)
+        for model, tag in [
+            (self.generator, "generator"),
+            (self.critic, "critic"),
+        ]:
+            for name, value in model.state_dict().items():
+                train_writer.add_histogram(f"{tag}/{name}", value, step)
 
     def _get_loss_weight(self) -> torch.Tensor:
         """Get the scalar weight for the positive class in the loss.
