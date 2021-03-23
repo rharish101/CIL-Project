@@ -1,5 +1,5 @@
 """Data loading utilities."""
-from functools import cache
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Tuple, TypeVar
 
@@ -49,7 +49,7 @@ class TrainDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.file_names)
 
-    @cache
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
         file_name = self.file_names[idx]
@@ -89,7 +89,7 @@ class TestDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.image_paths)
 
-    @cache
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
         """Get the image at the given index."""
         image_path = self.image_paths[idx]
