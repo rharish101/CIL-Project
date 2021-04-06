@@ -297,9 +297,8 @@ class Critic(Module):
                 512, 1024, dropout=config.crit_dropout, spectral_norm=True
             ),
             # Convert to a single output channel
-            ConvBlock(
-                1024, 1, dropout=config.crit_dropout, spectral_norm=True
-            ),
+            Dropout2d(config.crit_dropout),
+            spectralize(Conv2d(1024, 1, kernel_size=1)),
             AdaptiveAvgPool2d(1),  # global average pooling
         )
 
