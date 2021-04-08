@@ -12,6 +12,7 @@ from torchvision.transforms import (
     RandomApply,
     RandomCrop,
     RandomHorizontalFlip,
+    RandomRotation,
     RandomVerticalFlip,
 )
 from typing_extensions import Final
@@ -116,7 +117,7 @@ def get_randomizer(config: Config) -> TransformType:
         RandomCrop(config.crop_size),
         # Randomly rotate by 90 degrees. 180 and 270 can be composed using
         # rotation and flips.
-        RandomApply([Lambda(lambda tensor: torch.rot90(tensor, 1, [2, 3]))]),
+        RandomApply([RandomRotation((90, 90))], p=0.5),
         RandomHorizontalFlip(),
         RandomVerticalFlip(),
         # Split combined tensor into input and output
