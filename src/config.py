@@ -26,6 +26,9 @@ class Config:
         crop_size: The height/width of the randomly cropped training inputs
         rotation_range: The max absolute rotation in degrees for random
             rotation of training inputs
+        threshold: Whether or not to threshold the image at 0.5
+        loss: Which loss to train with. Possible values
+            ["logit_bce", "soft_dice"] (8.4.21)
     """
 
     learn_rate: float = 1e-4
@@ -41,6 +44,8 @@ class Config:
     seed: int = 0
     crop_size: int = 128
     rotation_range: float = 10.0
+    threshold: bool = True
+    loss: str = "logit_bce"
 
 
 def load_config(config_path: Optional[Path]) -> Config:

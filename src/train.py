@@ -18,6 +18,7 @@ from typing_extensions import Final
 from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_randomizer
 from .model import UNet
+from .soft_dice_loss import soft_dice_loss
 
 
 @dataclass
@@ -75,9 +76,14 @@ class Trainer:
             model = DataParallel(model)
         self.model = model.to(self.device)
 
-        loss_weight = self._get_loss_weight() if config.balanced_loss else None
-        # Using logits directly is numerically more stable and efficient
-        self.loss = BCEWithLogitsLoss(pos_weight=loss_weight)
+        if config.loss == "logit_bce":
+            loss_weight = (
+                self._get_loss_weight() if config.balanced_loss else None
+            )
+            # Using logits directly is numerically more stable and efficient
+            self.loss = BCEWithLogitsLoss(pos_weight=loss_weight)
+        elif config.loss == "soft_dice":
+            self.loss = soft_dice_loss
 
         self.optim = Adam(
             self.model.parameters(),
@@ -194,7 +200,15 @@ class Trainer:
         # overwrite older logs
         curr_date = datetime.now().astimezone()
         timestamped_log_dir = log_dir / curr_date.isoformat()
-        timestamped_log_dir.mkdir(parents=True)
+        try:
+            timestamped_log_dir.mkdir(parents=True)
+        except Exception:
+            # had to add this case because the original isoformat
+            # can't be used as dir_name in Windows
+            timestamped_log_dir = log_dir / curr_date.isoformat().replace(
+                ":", "."
+            )
+            timestamped_log_dir.mkdir(parents=True)
 
         # Save hyper-params as a TOML file for reference
         config = {**vars(self.config), "date": curr_date}

@@ -17,8 +17,6 @@ class Visualizer:
         self.root = tkinter.Tk()
         self.files_index = 0
 
-        # testing who I commit as
-
         self.files = sorted(image_dir.glob("*"))
         self.superimposed_images = dict()
         for png in self.files:
