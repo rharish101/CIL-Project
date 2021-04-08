@@ -44,15 +44,18 @@ def get_image_output(image_path: Path) -> Iterable[Tuple[str, int]]:
 
 def main(args: Namespace) -> None:
     """Run the main program."""
-    if not args.output_dir.exists():
-        args.output_dir.mkdir(parents=True)
+    output_dir = args.output_dir.expanduser()
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
 
-    output_path = args.output_dir / CSV_NAME
+    output_path = output_dir / CSV_NAME
     with open(output_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["Id", "Prediction"])
 
-        for path in sorted(args.image_dir.glob(f"*.{IMG_EXTENSION}")):
+        for path in sorted(
+            args.image_dir.expanduser().glob(f"*.{IMG_EXTENSION}")
+        ):
             for row in get_image_output(path):
                 writer.writerow(row)
 

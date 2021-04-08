@@ -37,9 +37,7 @@ class Inference:
         )
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
-        if torch.cuda.device_count() > 1:
-            model = DataParallel(model)
-        self.model = model.to(self.device)
+        self.model = DataParallel(model).to(self.device)
         Trainer.load_weights(self.model, load_dir)
 
         self.config = config
@@ -53,6 +51,9 @@ class Inference:
         output_dir = output_dir.expanduser()
         if not output_dir.exists():
             output_dir.mkdir(parents=True)
+
+        # Turn off batch-norm updates
+        self.model.eval()
 
         with tqdm(total=len(self.dataset), desc="Inference") as progress_bar:
             for images, names in self.loader:

@@ -1,4 +1,5 @@
 """Data loading utilities."""
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Tuple, TypeVar
 
@@ -8,9 +9,9 @@ from torchvision.io import read_image
 from torchvision.transforms import (
     Compose,
     Lambda,
+    RandomApply,
     RandomCrop,
     RandomHorizontalFlip,
-    RandomRotation,
     RandomVerticalFlip,
 )
 from typing_extensions import Final
@@ -48,6 +49,7 @@ class TrainDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.file_names)
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
         file_name = self.file_names[idx]
@@ -87,6 +89,7 @@ class TestDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.image_paths)
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
         """Get the image at the given index."""
         image_path = self.image_paths[idx]
@@ -111,7 +114,9 @@ def get_randomizer(config: Config) -> TransformType:
         # rotation, crop, etc. for both batches of input and output
         Lambda(lambda tup: torch.cat(tup, 1)),
         RandomCrop(config.crop_size),
-        RandomRotation(config.rotation_range),
+        # Randomly rotate by 90 degrees. 180 and 270 can be composed using
+        # rotation and flips.
+        RandomApply([Lambda(lambda tensor: torch.rot90(tensor, 1, [2, 3]))]),
         RandomHorizontalFlip(),
         RandomVerticalFlip(),
         # Split combined tensor into input and output

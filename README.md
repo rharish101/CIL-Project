@@ -46,7 +46,7 @@ To view the list of all positional and optional arguments for a script `script.p
     pre-commit install
     ```
 
-**NOTE**: You need to be inside the virtual environment where you installed the above dependencies every time you commit.
+**NOTE:** You need to be inside the virtual environment where you installed the above dependencies every time you commit.
 However, this is not required if you have installed pre-commit globally.
 
 ### Hyper-Parameter Configuration
@@ -62,16 +62,20 @@ It has an entry in the [`.gitignore`](./.gitignore) file so that custom configs 
 
 The available hyper-parameters, their documentation and default values are specified in the `Config` class in the file [`src/config.py`](./src/config.py).
 
+**NOTE:** You do not need to mention every single hyper-parameter in a config.
+In such a case, the missing ones will use their default values.
+
 ### Training
 Run the script `train.py`:
 ```sh
 ./train.py /path/to/CIL/dataset/
 ```
 
-The weights of trained models are saved with the `.pt` extension to the directory given by the `--save-dir` argument.
-By default, this directory is `saved_models`.
+The weights of trained models are saved with the `.pt` extension inside an ISO 8601 timestamped subdirectory, which is stored in a parent directory (as given by the `--save-dir` argument).
+By default, the parent directory is `saved_models`.
 
 Training logs are by default stored inside an ISO 8601 timestamped subdirectory, which is stored in a parent directory (as given by the `--log-dir` argument).
+The timestamp will be the same one as the one where the model weights are saved.
 By default, the parent directory is `logs`.
 
 The hyper-parameter config (including defaults) is saved as a TOML file named `config.toml` in both the saved models directory and the timestamped log directory.
@@ -95,8 +99,11 @@ Note that this will only provide significant speed-ups if your GPU(s) have speci
 The script `inference.py` generates predictions on the test data using a trained model.
 Run it as follows:
 ```sh
-./inference.py /path/to/image/dir/
+./inference.py /path/to/image/dir/ /path/to/save/dir/
 ```
+
+**NOTE:** Here, you need to give the path to the directory containing the input images, as opposed to the root directory of the CIL dataset.
+Also, you need to give the path to the directory containing the saved model's weights.
 
 The output images are saved in the directory given by the `--output-dir` argument.
 By default, this directory is `outputs`.
@@ -114,12 +121,22 @@ By default, both directories are `outputs`.
 
 ### Visualization
 The script `visualizer.py` provides a GUI that layers black-and-white segmentations on top of the corresponding images.
+Additionally, it can also visualize the model's predictions in green to compare them with the ground truth.
 Run this as follows:
 ```sh
 ./visualizer.py /path/to/CIL/dataset
 ```
 
-By default it visualizes the training data.
-To visualize the inference outputs for the test data, pass the `--mode test` argument.
-The inference images are loaded from the directory given by the `--pred-dir` argument.
-By default, this directory is `outputs`.
+By default, this visualizes the training data.
+To visualize the inference outputs for the training data, run it as follows:
+```sh
+./visualizer.py /path/to/CIL/dataset --pred-dir /path/to/model/outputs
+```
+Here, the inference images are loaded from the directory given by the `--pred-dir` argument.
+
+To visualize the inference outputs for the test data, run it as follows:
+```sh
+./visualizer.py /path/to/CIL/dataset --mode test --pred-dir /path/to/model/outputs
+```
+For the test data, you can't visualize the ground truth (because it doesn't exist!), and hence the inference outputs are used as "ground truth".
+Therefore, the `--pred-dir` argument is necessary in test mode.

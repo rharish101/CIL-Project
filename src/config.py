@@ -43,7 +43,6 @@ class Config:
     mixed_precision: bool = False
     seed: int = 0
     crop_size: int = 128
-    rotation_range: float = 10.0
     threshold: bool = True
     loss: str = "logit_bce"
 

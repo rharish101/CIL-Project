@@ -72,9 +72,7 @@ class Trainer:
         self.randomizer = get_randomizer(config)
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
-        if torch.cuda.device_count() > 1:
-            model = DataParallel(model)
-        self.model = model.to(self.device)
+        self.model = DataParallel(model).to(self.device)
 
         if config.loss == "logit_bce":
             loss_weight = (
@@ -116,7 +114,9 @@ class Trainer:
             save_steps: Step interval for saving the model's weights
             log_steps: Step interval for logging metrics
         """
-        train_writer, val_writer = self._setup_dirs(save_dir, log_dir)
+        train_writer, val_writer, timestamped_save_dir = self._setup_dirs(
+            save_dir, log_dir
+        )
 
         # Iterate step-by-step for a combined progress bar, and for automatic
         # step counting through enumerate
@@ -130,6 +130,8 @@ class Trainer:
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
+            # Turn on batch-norm updates
+            self.model.train()
             self.optim.zero_grad()
 
             image, ground_truth = self.randomizer((image, ground_truth))
@@ -146,7 +148,7 @@ class Trainer:
             self.scheduler.step()
 
             if step % save_steps == 0:
-                self.save_weights(save_dir)
+                self.save_weights(timestamped_save_dir)
 
             if step % log_steps == 0:
                 with torch.no_grad():
@@ -155,7 +157,7 @@ class Trainer:
                     metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
                     self._log_metrics(train_writer, val_writer, metrics, step)
 
-        self.save_weights(save_dir)
+        self.save_weights(timestamped_save_dir)
 
     def save_weights(self, save_dir: Path) -> None:
         """Save the model's weights.
@@ -184,21 +186,29 @@ class Trainer:
 
     def _setup_dirs(
         self, save_dir: Path, log_dir: Path
-    ) -> Tuple[SummaryWriter, SummaryWriter]:
+    ) -> Tuple[SummaryWriter, SummaryWriter, Path]:
         """Setup the save and log directories and return summary writers.
 
         This creates two summary writers, each for training and validation,
-        that log to a timestamped directory.
+        that log to a timestamped directory. This also creates a timestamped
+        directory (inside the given save directory) for saving the models.
+
+        Args:
+            save_dir: The directory where to save the models
+            log_dir: The directory where to dump the logs
+
+        Returns:
+            The training summary writer
+            The validation summary writer
+            The path to the timestamped save directory
         """
         save_dir = save_dir.expanduser()
         log_dir = log_dir.expanduser()
 
-        if not save_dir.exists():
-            save_dir.mkdir(parents=True)
-
-        # Log to a timestamped directory, since we don't want to accidently
-        # overwrite older logs
+        # Log and save to a timestamped directory, since we don't want to
+        # accidently overwrite older logs and models
         curr_date = datetime.now().astimezone()
+
         timestamped_log_dir = log_dir / curr_date.isoformat()
         try:
             timestamped_log_dir.mkdir(parents=True)
@@ -210,9 +220,12 @@ class Trainer:
             )
             timestamped_log_dir.mkdir(parents=True)
 
+        timestamped_save_dir = save_dir / curr_date.isoformat()
+        timestamped_save_dir.mkdir(parents=True)
+
         # Save hyper-params as a TOML file for reference
         config = {**vars(self.config), "date": curr_date}
-        for dest in save_dir, timestamped_log_dir:
+        for dest in timestamped_save_dir, timestamped_log_dir:
             with open(dest / self.CONFIG_NAME, "w") as f:
                 toml.dump(config, f)
 
@@ -221,7 +234,7 @@ class Trainer:
         train_writer = SummaryWriter(str(timestamped_log_dir / "training"))
         val_writer = SummaryWriter(str(timestamped_log_dir / "validation"))
 
-        return train_writer, val_writer
+        return train_writer, val_writer, timestamped_save_dir
 
     def _get_l2_reg(self) -> torch.Tensor:
         """Get the L2 regularization value for the model."""
@@ -232,6 +245,9 @@ class Trainer:
 
     def _get_val_metrics(self) -> _Metrics:
         """Get the metrics on the validation dataset."""
+        # Turn off batch-norm updates
+        self.model.eval()
+
         with torch.no_grad():
             metrics = _Metrics()
 
