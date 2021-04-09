@@ -16,7 +16,7 @@ from tqdm import tqdm
 from typing_extensions import Final
 
 from .config import Config
-from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_randomizer
+from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset
 from .model import UNet
 from .soft_dice_loss import soft_dice_loss
 
@@ -52,7 +52,7 @@ class Trainer:
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
-        dataset = TrainDataset(data_dir)
+        dataset = TrainDataset(data_dir, config)
         val_length = int(len(dataset) * config.val_split)
         train_dataset, val_dataset = random_split(
             dataset, [len(dataset) - val_length, val_length]
@@ -69,7 +69,7 @@ class Trainer:
             # No shuffle as it won't make any difference
             pin_memory=True,
         )
-        self.randomizer = get_randomizer(config)
+        # self.randomizer = get_randomizer(config)
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
         self.model = DataParallel(model).to(self.device)
@@ -134,7 +134,10 @@ class Trainer:
             self.model.train()
             self.optim.zero_grad()
 
-            image, ground_truth = self.randomizer((image, ground_truth))
+            # augmented = self.randomizer(image=image.numpy(),
+            #                      label=ground_truth.numpy())
+            # image = augmented["image"]
+            # ground_truth = augmented["label"]
             image = image.to(self.device)
             ground_truth = ground_truth.to(self.device)
 

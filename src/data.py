@@ -3,18 +3,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Tuple, TypeVar
 
+import albumentations as alb
 import torch
+from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from torchvision.io import read_image
-from torchvision.transforms import (  # RandomResizedCrop,
-    Compose,
-    Lambda,
-    RandomApply,
-    RandomCrop,
-    RandomHorizontalFlip,
-    RandomRotation,
-    RandomVerticalFlip,
-)
+from torchvision.transforms import Compose, Lambda
 from typing_extensions import Final
 
 from .config import Config
@@ -30,11 +24,12 @@ TransformType = Callable[[_TransformArg], _TransformArg]
 class TrainDataset(Dataset):
     """Dataset for the training data."""
 
-    def __init__(self, root_dir: Path):
+    def __init__(self, root_dir: Path, config: Config):
         """Load the list of training images in the dataset.
 
         Args:
             root_dir: Path to the directory where the CIL data is extracted
+            config: config file
         """
         train_dir = root_dir.expanduser() / "training/training"
         self.image_dir = train_dir / "images"
@@ -45,18 +40,26 @@ class TrainDataset(Dataset):
         self.file_names.sort()
 
         self.transform = self.get_transform()
+        self.randomizer = get_randomizer(config)
 
     def __len__(self) -> int:
         """Return the no. of images in the dataset."""
         return len(self.file_names)
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
         file_name = self.file_names[idx]
         image = read_image(str(self.image_dir / file_name))
         ground_truth = read_image(str(self.ground_truth_dir / file_name))
-        return self.transform((image, ground_truth))
+        image, ground_truth = self.transform((image, ground_truth))
+        # Do a random transform on each entry retrieval
+        image_np = image.detach().numpy()
+        label_np = ground_truth.detach().numpy()
+        image_np = image_np.transpose((1, 2, 0))
+        label_np = label_np.transpose((1, 2, 0))
+        randomized = self.randomizer(image=image_np, label=label_np)
+        return randomized["image"], randomized["label"]
 
     @staticmethod
     def get_transform() -> TransformType:
@@ -104,7 +107,7 @@ class TestDataset(Dataset):
         return Lambda(lambda x: x.float() / 255)
 
 
-def get_randomizer(config: Config) -> TransformType:
+def get_randomizer(config: Config):
     """Get the transformation for data augmentation.
 
     This performs random operations that implicitly "augment" the data, by
@@ -113,15 +116,18 @@ def get_randomizer(config: Config) -> TransformType:
     transforms = [
         # Combine them along channels so that random transforms do the same
         # rotation, crop, etc. for both batches of input and output
-        Lambda(lambda tup: torch.cat(tup, 1)),
-        RandomCrop(config.crop_size),
+        # Lambda(lambda tup: torch.cat(tup, 1)),
+        alb.RandomCrop(config.crop_size, config.crop_size),
         # RandomResizedCrop(config.crop_size, scale=(0.5, 1)),
         # Randomly rotate by 90 degrees. 180 and 270 can be composed using
         # rotation and flips.
-        RandomApply([RandomRotation((90, 90))], p=0.5),
-        RandomHorizontalFlip(),
-        RandomVerticalFlip(),
+        # RandomApply([RandomRotation((90, 90))], p=0.5),
+        alb.RandomRotate90(),
+        alb.HorizontalFlip(),
+        alb.VerticalFlip(),
+        alb.ElasticTransform(),
+        ToTensorV2(),
         # Split combined tensor into input and output
-        Lambda(lambda x: (x[:, :3], x[:, 3].unsqueeze(1))),
+        # Lambda(lambda x: (x[:, :3], x[:, 3].unsqueeze(1))),
     ]
-    return Compose(transforms)
+    return alb.Compose(transforms, additional_targets={"label": "image"})
