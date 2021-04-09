@@ -23,6 +23,7 @@ tqdm = "^4.59.0"
 tensorboard = "^2.4.1"
 Pillow = "^8.1.2"
 numpy = "^1.19.5"
+albumentations = "^0.5.2"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.10.1"
