@@ -6,12 +6,12 @@ from typing import Callable, Tuple, TypeVar
 import torch
 from torch.utils.data import Dataset
 from torchvision.io import read_image
-from torchvision.transforms import (  # RandomCrop,
+from torchvision.transforms import (  # RandomResizedCrop,
     Compose,
     Lambda,
     RandomApply,
+    RandomCrop,
     RandomHorizontalFlip,
-    RandomResizedCrop,
     RandomRotation,
     RandomVerticalFlip,
 )
@@ -114,8 +114,8 @@ def get_randomizer(config: Config) -> TransformType:
         # Combine them along channels so that random transforms do the same
         # rotation, crop, etc. for both batches of input and output
         Lambda(lambda tup: torch.cat(tup, 1)),
-        # RandomCrop(config.crop_size),
-        RandomResizedCrop(config.crop_size, scale=(0.5, 1)),
+        RandomCrop(config.crop_size),
+        # RandomResizedCrop(config.crop_size, scale=(0.5, 1)),
         # Randomly rotate by 90 degrees. 180 and 270 can be composed using
         # rotation and flips.
         RandomApply([RandomRotation((90, 90))], p=0.5),
