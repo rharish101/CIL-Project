@@ -55,8 +55,7 @@ class TrainDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
-        image = read_image(self.training_path_list[idx])
-        ground_truth = read_image(self.ground_truth_path_list[idx])
+        image, ground_truth = self.load_images(idx)
         image, ground_truth = self.transform((image, ground_truth))
 
         # Do a random transform on each entry retrieval
@@ -84,6 +83,13 @@ class TrainDataset(Dataset):
             Lambda(lambda tup: (tup[0], (tup[1] > 0.5).float())),
         ]
         return Compose(transforms)
+
+    @lru_cache(maxsize=None)
+    def load_images(self, idx):
+        """Load training and ground truth images from storage."""
+        image = read_image(self.training_path_list[idx])
+        ground_truth = read_image(self.ground_truth_path_list[idx])
+        return image, ground_truth
 
 
 class TestDataset(Dataset):
