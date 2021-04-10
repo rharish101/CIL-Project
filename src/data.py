@@ -25,41 +25,50 @@ TransformType = Callable[[_TransformArg], _TransformArg]
 class TrainDataset(Dataset):
     """Dataset for the training data."""
 
-    def __init__(self, root_dir: Path, config: Config):
+    def __init__(
+        self,
+        config: Config,
+        training_path_list: list,
+        ground_truth_path_list: list,
+        random_augmentation=True,
+    ):
         """Load the list of training images in the dataset.
 
         Args:
-            root_dir: Path to the directory where the CIL data is extracted
             config: config file
+            training_path_list: List of paths of training images
+            ground_truth_path_list: List of paths of ground truth images
+            random_augmentation: Set whether randomization transformations
+                should be applied on the data
         """
-        train_dir = root_dir.expanduser() / "training/training"
-        self.image_dir = train_dir / "images"
-        self.ground_truth_dir = train_dir / "groundtruth"
-
-        self.file_names = [path.name for path in self.image_dir.glob("*")]
-        # Sort for reproducibility
-        self.file_names.sort()
+        self.training_path_list = training_path_list
+        self.ground_truth_path_list = ground_truth_path_list
 
         self.transform = self.get_transform()
         self.randomizer = get_randomizer(config)
+        self.random_augmentation = random_augmentation
 
     def __len__(self) -> int:
         """Return the no. of images in the dataset."""
-        return len(self.file_names)
+        return len(self.training_path_list)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
-        file_name = self.file_names[idx]
-        image = read_image(str(self.image_dir / file_name))
-        ground_truth = read_image(str(self.ground_truth_dir / file_name))
+        image = read_image(self.training_path_list[idx])
+        ground_truth = read_image(self.ground_truth_path_list[idx])
         image, ground_truth = self.transform((image, ground_truth))
+
         # Do a random transform on each entry retrieval
-        image_np = image.detach().numpy()
-        label_np = ground_truth.detach().numpy()
-        image_np = image_np.transpose((1, 2, 0))
-        label_np = label_np.transpose((1, 2, 0))
-        randomized = self.randomizer(image=image_np, label=label_np)
-        return randomized["image"], randomized["label"]
+        if self.random_augmentation:
+            image_np = image.detach().numpy()
+            label_np = ground_truth.detach().numpy()
+            image_np = image_np.transpose((1, 2, 0))
+            label_np = label_np.transpose((1, 2, 0))
+            randomized = self.randomizer(image=image_np, label=label_np)
+            image = randomized["image"]
+            ground_truth = randomized["label"]
+
+        return image, ground_truth
 
     @staticmethod
     def get_transform() -> TransformType:
@@ -126,3 +135,27 @@ def get_randomizer(config: Config) -> AlbCompose:
         ToTensorV2(),
     ]
     return alb.Compose(transforms, additional_targets={"label": "image"})
+
+
+def get_file_paths(root_dir: Path) -> Tuple[list, list]:
+    """Load the list of training and ground truth image paths.
+
+    Args:
+        root_dir: Path to the directory where the CIL data is extracted
+    """
+    train_dir = root_dir.expanduser() / "training/training"
+    image_dir = train_dir / "images"
+    ground_truth_dir = train_dir / "groundtruth"
+
+    file_names = [path.name for path in image_dir.glob("*")]
+    # Sort for reproducibility
+    file_names.sort()
+
+    training_path_list = [
+        str(image_dir / file_name) for file_name in file_names
+    ]
+    ground_truth_path_list = [
+        str(ground_truth_dir / file_name) for file_name in file_names
+    ]
+
+    return training_path_list, ground_truth_path_list

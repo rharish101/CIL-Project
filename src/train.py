@@ -6,17 +6,18 @@ from typing import Tuple
 
 import toml
 import torch
+from sklearn.model_selection import train_test_split
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn import BCEWithLogitsLoss, DataParallel, Module
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing_extensions import Final
 
 from .config import Config
-from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset
+from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_file_paths
 from .model import UNet
 from .soft_dice_loss import soft_dice_loss
 
@@ -52,11 +53,20 @@ class Trainer:
             "cuda" if torch.cuda.is_available() else "cpu"
         )
 
-        dataset = TrainDataset(data_dir, config)
-        val_length = int(len(dataset) * config.val_split)
-        train_dataset, val_dataset = random_split(
-            dataset, [len(dataset) - val_length, val_length]
+        training_path_list, ground_truth_path_list = get_file_paths(data_dir)
+        X_train, X_test, y_train, y_test = train_test_split(
+            training_path_list,
+            ground_truth_path_list,
+            test_size=config.val_split,
         )
+
+        train_dataset = TrainDataset(
+            config, X_train, y_train, random_augmentation=True
+        )
+        val_dataset = TrainDataset(
+            config, X_train, y_train, random_augmentation=False
+        )
+
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=config.train_batch_size,
@@ -69,7 +79,6 @@ class Trainer:
             # No shuffle as it won't make any difference
             pin_memory=True,
         )
-        # self.randomizer = get_randomizer(config)
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
         self.model = DataParallel(model).to(self.device)
