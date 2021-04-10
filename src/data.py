@@ -5,6 +5,7 @@ from typing import Callable, Tuple, TypeVar
 
 import albumentations as alb
 import torch
+from albumentations.core.composition import Compose as AlbCompose
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from torchvision.io import read_image
@@ -46,7 +47,6 @@ class TrainDataset(Dataset):
         """Return the no. of images in the dataset."""
         return len(self.file_names)
 
-    # @lru_cache(maxsize=None)
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """Get the image and its ground truth at the given index."""
         file_name = self.file_names[idx]
@@ -107,7 +107,7 @@ class TestDataset(Dataset):
         return Lambda(lambda x: x.float() / 255)
 
 
-def get_randomizer(config: Config):
+def get_randomizer(config: Config) -> AlbCompose:
     """Get the transformation for data augmentation.
 
     This performs random operations that implicitly "augment" the data, by
@@ -118,16 +118,11 @@ def get_randomizer(config: Config):
         # rotation, crop, etc. for both batches of input and output
         # Lambda(lambda tup: torch.cat(tup, 1)),
         alb.RandomCrop(config.crop_size, config.crop_size),
-        # RandomResizedCrop(config.crop_size, scale=(0.5, 1)),
-        # Randomly rotate by 90 degrees. 180 and 270 can be composed using
-        # rotation and flips.
-        # RandomApply([RandomRotation((90, 90))], p=0.5),
+        # Randomly rotate by 90 degrees.
         alb.RandomRotate90(),
         alb.HorizontalFlip(),
         alb.VerticalFlip(),
         alb.ElasticTransform(),
         ToTensorV2(),
-        # Split combined tensor into input and output
-        # Lambda(lambda x: (x[:, :3], x[:, 3].unsqueeze(1))),
     ]
     return alb.Compose(transforms, additional_targets={"label": "image"})
