@@ -1,4 +1,5 @@
 """Class to train the model."""
+import random
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -6,7 +7,6 @@ from typing import Tuple
 
 import toml
 import torch
-from sklearn.model_selection import train_test_split
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn import BCEWithLogitsLoss, DataParallel, Module
 from torch.optim import Adam
@@ -54,10 +54,11 @@ class Trainer:
         )
 
         training_path_list, ground_truth_path_list = get_file_paths(data_dir)
-        X_train, X_test, y_train, y_test = train_test_split(
+
+        X_train, X_test, y_train, y_test = self.train_test_split(
             training_path_list,
             ground_truth_path_list,
-            test_size=config.val_split,
+            test_portion=config.val_split,
         )
 
         train_dataset = TrainDataset(
@@ -351,3 +352,19 @@ class Trainer:
 
         eps = torch.finfo(n_pos.dtype).eps
         return n_neg / (n_pos + eps)
+
+    @staticmethod
+    def train_test_split(X, y, test_portion):
+        """Splits training data into train test list wrt the test portion."""
+        joint_list = list(zip(X, y))
+        random.shuffle(joint_list)
+
+        shuffled_X, shuffled_y = zip(*joint_list)
+        pivot = int(len(X) * test_portion)
+
+        return (
+            shuffled_X[pivot:],
+            shuffled_X[:pivot],
+            shuffled_y[pivot:],
+            shuffled_y[:pivot],
+        )
