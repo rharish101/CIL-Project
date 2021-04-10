@@ -143,10 +143,6 @@ class Trainer:
             self.model.train()
             self.optim.zero_grad()
 
-            # augmented = self.randomizer(image=image.numpy(),
-            #                      label=ground_truth.numpy())
-            # image = augmented["image"]
-            # ground_truth = augmented["label"]
             image = image.to(self.device)
             ground_truth = ground_truth.to(self.device)
 

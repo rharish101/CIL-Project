@@ -1,4 +1,5 @@
 """Data loading utilities."""
+import typing
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Tuple, TypeVar
@@ -28,8 +29,8 @@ class TrainDataset(Dataset):
     def __init__(
         self,
         config: Config,
-        training_path_list: list,
-        ground_truth_path_list: list,
+        training_path_list: typing.List,
+        ground_truth_path_list: typing.List,
         random_augmentation=True,
     ):
         """Load the list of training images in the dataset.
@@ -137,11 +138,17 @@ def get_randomizer(config: Config) -> AlbCompose:
     return alb.Compose(transforms, additional_targets={"label": "image"})
 
 
-def get_file_paths(root_dir: Path) -> Tuple[list, list]:
+def get_file_paths(
+    root_dir: Path,
+) -> Tuple[typing.List[str], typing.List[str]]:
     """Load the list of training and ground truth image paths.
 
     Args:
         root_dir: Path to the directory where the CIL data is extracted
+
+    Returns:
+        (training_path_list, ground_truth_path_list): List of training
+            and ground truth image paths
     """
     train_dir = root_dir.expanduser() / "training/training"
     image_dir = train_dir / "images"
