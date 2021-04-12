@@ -1,8 +1,8 @@
 """Data loading utilities."""
-import typing
+
 from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Tuple, TypeVar
+from typing import Callable, List, Tuple, TypeVar
 
 import albumentations as alb
 import torch
@@ -29,8 +29,8 @@ class TrainDataset(Dataset):
     def __init__(
         self,
         config: Config,
-        training_path_list: typing.List,
-        ground_truth_path_list: typing.List,
+        training_path_list: List[str],
+        ground_truth_path_list: List[str],
         random_augmentation=True,
     ):
         """Load the list of training images in the dataset.
@@ -132,7 +132,6 @@ def get_randomizer(config: Config) -> AlbCompose:
     transforms = [
         # Combine them along channels so that random transforms do the same
         # rotation, crop, etc. for both batches of input and output
-        # Lambda(lambda tup: torch.cat(tup, 1)),
         alb.RandomCrop(config.crop_size, config.crop_size),
         # Randomly rotate by 90 degrees.
         alb.RandomRotate90(),
@@ -146,15 +145,15 @@ def get_randomizer(config: Config) -> AlbCompose:
 
 def get_file_paths(
     root_dir: Path,
-) -> Tuple[typing.List[str], typing.List[str]]:
+) -> Tuple[List[str], List[str]]:
     """Load the list of training and ground truth image paths.
 
     Args:
         root_dir: Path to the directory where the CIL data is extracted
 
     Returns:
-        (training_path_list, ground_truth_path_list): List of training
-            and ground truth image paths
+        List of training image paths
+        List of ground truth image paths
     """
     train_dir = root_dir.expanduser() / "training/training"
     image_dir = train_dir / "images"
