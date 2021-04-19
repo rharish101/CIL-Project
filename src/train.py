@@ -9,6 +9,7 @@ import toml
 import torch
 from torch.cuda.amp import GradScaler, autocast
 from torch.nn import BCEWithLogitsLoss, DataParallel, Module
+from torch.nn.functional import sigmoid
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
@@ -150,7 +151,7 @@ class Trainer:
         # for getting the Wasserstein distance
         self.critic.eval()
         with autocast(enabled=self.config.mixed_precision):
-            fake_out = self.critic(prediction)
+            fake_out = self.critic(sigmoid(prediction))
             real_out = self.critic(ground_truth)
             wass_dist = (real_out - fake_out).mean()
             total_loss = loss + self.config.wass_weight * wass_dist
@@ -165,7 +166,7 @@ class Trainer:
         return _Metrics(loss=loss, wass=wass_dist, accuracy=acc, f1_score=f1)
 
     def _train_step_critic(
-        self, prediction: torch.Tensor, ground_truth: torch.Tensor
+        self, logits: torch.Tensor, ground_truth: torch.Tensor
     ) -> None:
         """Run a single training step for the critic."""
         self.crit_optim.zero_grad()
@@ -174,7 +175,7 @@ class Trainer:
             # Detach inputs so that PyTorch doesn't propagate gradients behind
             # the critic's inputs. Otherwise, after optimizing the critic, the
             # generator's computational graph will be erased.
-            fake_out = self.critic(prediction.detach())
+            fake_out = self.critic(sigmoid(logits.detach()))
             real_out = self.critic(ground_truth)
 
             wass_dist = real_out - fake_out
@@ -341,7 +342,7 @@ class Trainer:
                     val_pred = self.generator(val_img)
                     metrics.loss += self.loss(val_pred, val_gt)
 
-                    fake_out = self.critic(val_pred)
+                    fake_out = self.critic(sigmoid(val_pred))
                     real_out = self.critic(val_gt)
                     metrics.wass = (real_out - fake_out).mean()
 
