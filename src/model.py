@@ -286,9 +286,11 @@ class Critic(Module):
             ResBlock(128, 256, dropout=config.crit_dropout),
             MaxPool2d(2),
             ResBlock(256, 512, dropout=config.crit_dropout),
+            MaxPool2d(2),
+            ResBlock(512, 1024, dropout=config.crit_dropout),
             # Convert to a single output channel
             Dropout2d(config.crit_dropout),
-            Conv2d(512, 1, kernel_size=1),
+            Conv2d(1024, 1, kernel_size=1),
             AdaptiveAvgPool2d(1),  # global average pooling
         )
         self.model = spectralize(model)
