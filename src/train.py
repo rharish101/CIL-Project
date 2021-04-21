@@ -29,6 +29,7 @@ class _Metrics:
     Attributes:
         loss: The classification loss
         accuracy: The accuracy
+        f1_score: The F1 score
     """
 
     loss: torch.Tensor = 0.0
