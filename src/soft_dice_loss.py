@@ -31,8 +31,10 @@ def dice_coef(
 def soft_dice_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """Calculates the dice loss.
 
+    Had to add the sigmoid to map predictions into [0, 1]
+
     Args:
         y_true: true y
         y_pred: pred y
     """
-    return 1 - dice_coef(y_true, y_pred)
+    return 1 - dice_coef(y_true, torch.sigmoid(y_pred))

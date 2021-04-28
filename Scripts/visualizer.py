@@ -31,6 +31,7 @@ class Visualizer:
         self.files_index = 0
 
         self.files = sorted(image_dir.glob("*"))
+        print(image_dir)
         self.superimposed_images = dict()
         for png in self.files:
             im_1 = Image.open(png).convert("RGBA")
@@ -97,7 +98,6 @@ def main(args: Namespace) -> None:
             )
         ground_truth_dir = args.pred_dir.expanduser()
         prediction_dir = None
-
     gui = Visualizer(image_dir, ground_truth_dir, prediction_dir)
     gui.run()
 
