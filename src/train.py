@@ -41,6 +41,7 @@ class Trainer:
     """Class to train the model."""
 
     SAVE_NAME: Final = "model.pt"  # for the model's weights
+    BEST_SAVE_NAME: Final = "best.pt"  # for the best-model (accuracy)
     CONFIG_NAME: Final = "config.toml"  # for info on hyper-params
 
     def __init__(self, data_dir: Path, config: Config):
