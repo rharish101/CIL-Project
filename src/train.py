@@ -41,7 +41,7 @@ class Trainer:
     """Class to train the model."""
 
     SAVE_NAME: Final = "model.pt"  # for the model's weights
-    BEST_SAVE_NAME: Final = "best.pt"  # for the best-model (accuracy)
+    BEST_SAVE_NAME: Final = "best-model.pt"  # for the best-model (accuracy)
     CONFIG_NAME: Final = "config.toml"  # for info on hyper-params
 
     def __init__(self, data_dir: Path, config: Config):
@@ -111,6 +111,9 @@ class Trainer:
         # Used when dumping hyper-params to a file
         self.config = config
 
+        # To store best acc achieved so far
+        self.best_acc = 0.0
+
     def train(
         self,
         save_dir: Path,
@@ -165,6 +168,9 @@ class Trainer:
                 with torch.no_grad():
                     acc = self._get_acc(prediction, ground_truth)
                     f1 = self._get_f1(prediction, ground_truth)
+                    if acc > self.best_acc:
+                        self.best_acc = acc
+                        self.save_best_weights(timestamped_save_dir)
                     metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
                     self._log_metrics(train_writer, val_writer, metrics, step)
 
@@ -177,6 +183,15 @@ class Trainer:
             save_dir: Directory where to save the model's weights
         """
         save_path = save_dir.expanduser() / self.SAVE_NAME
+        torch.save(self.model.state_dict(), save_path)
+
+    def save_best_weights(self, save_dir: Path) -> None:
+        """Save the best model's weights.
+
+        Args:
+            save_dir: Directory where to save the best model's weights
+        """
+        save_path = save_dir.expanduser() / self.BEST_SAVE_NAME
         torch.save(self.model.state_dict(), save_path)
 
     @classmethod
