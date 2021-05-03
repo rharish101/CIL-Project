@@ -186,7 +186,8 @@ class UNet(Module):
 
         # Each block starts after the previous block, and terminates at a point
         # where either a skip connection starts or ends
-        blocks = [
+
+        down_blocks = [
             ResBlock(in_channels, 64),
             Sequential(
                 MaxPool2d(2), ResBlock(64, 128, dropout=config.dropout)
@@ -197,11 +198,16 @@ class UNet(Module):
             Sequential(
                 MaxPool2d(2), ResBlock(256, 512, dropout=config.dropout)
             ),
-            Sequential(
-                MaxPool2d(2),
-                ResBlock(512, 1024, dropout=config.dropout),
-                ConvTBlock(1024, 512, dropout=config.dropout),
-            ),
+        ]
+        self.down_blocks = ModuleList(down_blocks)
+
+        self.bottleneck = Sequential(
+            MaxPool2d(2),
+            ResBlock(512, 1024, dropout=config.dropout),
+            ConvTBlock(1024, 512, dropout=config.dropout),
+        )
+
+        up_blocks = [
             Sequential(
                 ResBlock(1024, 512, dropout=config.dropout),
                 ConvTBlock(512, 256, dropout=config.dropout),
@@ -219,22 +225,24 @@ class UNet(Module):
                 Conv2d(64, out_channels, kernel_size=1),
             ),
         ]
-        self.blocks = ModuleList(blocks)
+        self.up_blocks = ModuleList(up_blocks)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Segment the inputs."""
         # autocast is needed here since we're using DataParallel
         with autocast(enabled=self.config.mixed_precision):
             # Stores all intermediate block outputs for skip-connections
-            outputs = [inputs]
+            down_outputs = [inputs]
 
             # Going down the U
-            for block in self.blocks[:5]:
-                outputs.append(block(outputs[-1]))
+            for block in self.down_blocks:
+                down_outputs.append(block(down_outputs[-1]))
+
+            output = self.bottleneck(down_outputs[-1])
 
             # Going up the U
-            for i, block in enumerate(self.blocks[5:]):
-                combined = torch.cat([outputs[4 - i], outputs[-1]], -3)
-                outputs.append(block(combined))
+            for i, block in enumerate(self.up_blocks, 1):
+                combined = torch.cat([down_outputs[-i], output], -3)
+                output = block(combined)
 
-            return outputs[-1]
+            return output
