@@ -69,7 +69,7 @@ class SemThinTest:
 
         self.root.title(
             "Image: "
-            + str(self.current_id)
+            + self.image_names[self.current_id]
             + " - Threshold: "
             + str(self.threshold)
             + " - Mode: "
@@ -79,10 +79,12 @@ class SemThinTest:
     def main(self, args: Namespace) -> None:
         """Main, duh."""
         self.images = []
+        self.image_names = []
         for im_path in glob.glob(str(args.image_dir.expanduser() / "*.png")):
             im = imageio.imread(im_path)
             im = im / 255
             self.images.append(im)
+            self.image_names.append(im_path.split("\\")[-1][:-4])
 
         self.current_id = 0
         # this is the logit value, always needs to be put through sigmoid first
@@ -105,7 +107,7 @@ class SemThinTest:
         )
         self.root.title(
             "Image: "
-            + str(self.current_id)
+            + self.image_names[self.current_id]
             + " - Threshold: "
             + str(self.threshold)
             + " - Mode: "
