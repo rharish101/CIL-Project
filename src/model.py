@@ -207,6 +207,9 @@ class UNet(Module):
             Sequential(
                 MaxPool2d(2), ResBlock(512, 1024, dropout=config.dropout)
             ),
+            Sequential(
+                MaxPool2d(2), ResBlock(1024, 1024, dropout=config.dropout)
+            ),
         ]
         self.down_blocks = ModuleList(down_blocks)
 
@@ -215,6 +218,10 @@ class UNet(Module):
         )
 
         up_blocks = [
+            Sequential(
+                CombineBlock(1024, 1024, dropout=config.dropout),
+                ResBlock(2048, 1024, dropout=config.dropout),
+            ),
             Sequential(
                 CombineBlock(1024, 1024, dropout=config.dropout),
                 ResBlock(2048, 1024, dropout=config.dropout),
