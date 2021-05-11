@@ -1,10 +1,11 @@
 """Model definitions."""
+from typing import Tuple
+
 import torch
 from torch.cuda.amp import autocast
 from torch.nn import (
     BatchNorm2d,
     Conv2d,
-    ConvTranspose2d,
     Dropout2d,
     Identity,
     LeakyReLU,
@@ -13,6 +14,7 @@ from torch.nn import (
     ModuleList,
     Sequential,
 )
+from torch.nn.functional import interpolate
 from typing_extensions import Final
 
 from .config import Config
@@ -66,14 +68,13 @@ class ConvBlock(Module):
         return self.block(inputs)
 
 
-class ConvTBlock(Module):
-    """Block combining ConvTranspose2d with non-linearities.
+class CombineBlock(Module):
+    """Block combining upsampling with non-linearities and concatenation.
 
     This block consists of:
-        * Dropout2d
-        * ConvTranspose2d
-        * BatchNorm2d
-        * LeakyReLU
+        * Upsampling
+        * ConvBlock
+        * Concatenation
     """
 
     LEAKY_RELU_SLOPE: Final = 0.2
@@ -89,31 +90,31 @@ class ConvTBlock(Module):
 
         Args:
             in_channels: The no. of input channels
-            out_channels: The no. of output channels
-            kernel_size: The kernel size for ConvTranspose2d
+            out_channels: The no. of output channels after upsampling. Note
+                that the final outputs will have double the channels, due to
+                concatenation.
+            kernel_size: The kernel size for Conv2d
             dropout: The probability of dropping out the inputs
         """
         super().__init__()
-        # Appropriate padding to keep output and input sizes equal
-        padding = (kernel_size - 1) // 2
-        self.block = Sequential(
-            Dropout2d(dropout, inplace=True),
-            ConvTranspose2d(
-                in_channels,
-                out_channels,
-                kernel_size=kernel_size,
-                stride=2,
-                padding=padding,
-                output_padding=1,
-                bias=False,  # no use of bias as BatchNorm2d will delete it
-            ),
-            BatchNorm2d(out_channels),
-            LeakyReLU(self.LEAKY_RELU_SLOPE, inplace=True),
+        self.conv = ConvBlock(
+            in_channels, out_channels, kernel_size=kernel_size, dropout=dropout
         )
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        """Get the block's outputs."""
-        return self.block(inputs)
+    def forward(
+        self, inputs: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        """Get the block's outputs.
+
+        Args:
+            inputs: The tuple that consists of:
+                * The low-res inputs to be upsampled
+                * The high-res inputs to be concatenated at the end
+        """
+        low_res, high_res = inputs
+        upsampled = interpolate(low_res, high_res.shape[-2:])
+        processed = self.conv(upsampled)
+        return torch.cat([high_res, processed], -3)
 
 
 class ResBlock(Module):
@@ -206,25 +207,24 @@ class UNet(Module):
         self.down_blocks = ModuleList(down_blocks)
 
         self.bottleneck = Sequential(
-            MaxPool2d(2),
-            ResBlock(512, 1024, dropout=config.dropout),
-            ConvTBlock(1024, 512, dropout=config.dropout),
+            MaxPool2d(2), ResBlock(512, 1024, dropout=config.dropout)
         )
 
         up_blocks = [
             Sequential(
+                CombineBlock(1024, 512, dropout=config.dropout),
                 ResBlock(1024, 512, dropout=config.dropout),
-                ConvTBlock(512, 256, dropout=config.dropout),
             ),
             Sequential(
+                CombineBlock(512, 256, dropout=config.dropout),
                 ResBlock(512, 256, dropout=config.dropout),
-                ConvTBlock(256, 128, dropout=config.dropout),
             ),
             Sequential(
+                CombineBlock(256, 128, dropout=config.dropout),
                 ResBlock(256, 128, dropout=config.dropout),
-                ConvTBlock(128, 64, dropout=config.dropout),
             ),
             Sequential(
+                CombineBlock(128, 64, dropout=config.dropout),
                 ResBlock(128, 64, dropout=config.dropout),
                 Conv2d(64, out_channels, kernel_size=1),
             ),
@@ -246,7 +246,6 @@ class UNet(Module):
 
             # Going up the U
             for i, block in enumerate(self.up_blocks, 1):
-                combined = torch.cat([down_outputs[-i], output], -3)
-                output = block(combined)
+                output = block([output, down_outputs[-i]])
 
             return output
