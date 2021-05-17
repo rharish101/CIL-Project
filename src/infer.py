@@ -63,13 +63,10 @@ class Inference:
                     logits = self.model(images)
 
                 # Get binary output of either 0.0 or 1.0
-                # sigmoid(logits) > 0.5 => logits > 0
-                if self.config.threshold:
-                    predictions = (logits > 0).float()
+                if self.config.threshold is not None:
+                    predictions = (logits > self.config.threshold).float()
                 else:
                     predictions = torch.sigmoid(logits)
-                if self.config.loss == "soft_dice":
-                    predictions = predictions * -1 + 1
                 # Convert float32 in [0, 1] to uint8 in [0, 255]
                 outputs = (predictions * 255).squeeze(1).byte()
                 # Pillow needs numpy ndarrays; it fails with PyTorch tensors
