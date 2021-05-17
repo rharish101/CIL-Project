@@ -6,6 +6,7 @@ from torch.nn import (
     Conv2d,
     ConvTranspose2d,
     Dropout2d,
+    Identity,
     LeakyReLU,
     MaxPool2d,
     Module,
@@ -158,9 +159,12 @@ class ResBlock(Module):
             ),
         )
         # No use of bias as the main block has a bias
-        self.skip = Conv2d(
-            in_channels, out_channels, kernel_size=1, bias=False
-        )
+        if in_channels != out_channels:
+            self.skip = Conv2d(
+                in_channels, out_channels, kernel_size=1, bias=False
+            )
+        else:
+            self.skip = Identity()
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Get the block's outputs."""
