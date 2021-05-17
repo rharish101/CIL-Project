@@ -46,7 +46,7 @@ class TrainDataset(Dataset):
         self.ground_truth_path_list = ground_truth_path_list
 
         self.transform = self.get_transform()
-        self.randomizer = get_randomizer(config)
+        self.pair_randomizer, self.input_randomizer = get_randomizer(config)
         self.random_augmentation = random_augmentation
 
     def __len__(self) -> int:
@@ -64,7 +64,10 @@ class TrainDataset(Dataset):
             label_np = ground_truth.detach().numpy()
             image_np = image_np.transpose((1, 2, 0))
             label_np = label_np.transpose((1, 2, 0))
-            randomized = self.randomizer(image=image_np, label=label_np)
+            # input only transformations
+            image_np = self.input_randomizer(image=image_np)["image"]
+            # pair transformations
+            randomized = self.pair_randomizer(image=image_np, label=label_np)
             image = randomized["image"]
             ground_truth = randomized["label"]
 
@@ -123,24 +126,41 @@ class TestDataset(Dataset):
         return Lambda(lambda x: x.float() / 255)
 
 
-def get_randomizer(config: Config) -> AlbCompose:
-    """Get the transformation for data augmentation.
+def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
+    """Get the transformations for data augmentation.
 
     This performs random operations that implicitly "augment" the data, by
     creating completely new instances.
     """
-    transforms = [
-        # Combine them along channels so that random transforms do the same
-        # rotation, crop, etc. for both batches of input and output
+    pair_transforms = [
+        # Rotation - Crop
         alb.RandomCrop(config.crop_size, config.crop_size),
-        # Randomly rotate by 90 degrees.
         alb.RandomRotate90(),
         alb.HorizontalFlip(),
         alb.VerticalFlip(),
-        alb.ElasticTransform(),
+        # Deformation
+        alb.OneOf(
+            [
+                alb.ElasticTransform(),
+                alb.GridDistortion(),
+                alb.OpticalDistortion(),
+            ],
+            p=0.5,
+        ),
         ToTensorV2(),
     ]
-    return alb.Compose(transforms, additional_targets={"label": "image"})
+
+    input_transforms = [
+        # Color transforms
+        alb.ChannelShuffle(),
+        alb.RandomBrightnessContrast(),
+        alb.ColorJitter(),
+        alb.GaussianBlur(),
+    ]
+    return (
+        alb.Compose(pair_transforms, additional_targets={"label": "image"}),
+        alb.Compose(input_transforms),
+    )
 
 
 def get_file_paths(
