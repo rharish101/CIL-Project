@@ -16,6 +16,8 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing_extensions import Final
 
+from crf import crf
+
 from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_file_paths
 from .model import UNet
@@ -154,6 +156,7 @@ class Trainer:
 
             with autocast(enabled=self.config.mixed_precision):
                 prediction = self.model(image)
+                prediction = self.post_processing(prediction)
                 loss = self.loss(prediction, ground_truth)
 
             self.scaler.scale(loss).backward()
@@ -178,6 +181,14 @@ class Trainer:
                     )
 
         self.save_weights(timestamped_save_dir)
+
+    def post_processing(self, prediction: torch.Tensor) -> torch.Tensor:
+        """Post processing on the prediction.
+
+        Args:
+            prediction: The initial prediction
+        """
+        return crf(prediction, self.model)
 
     def save_weights(self, save_dir: Path, is_best: bool = False) -> None:
         """Save the model's weights.
@@ -291,6 +302,7 @@ class Trainer:
 
                 with autocast(enabled=self.config.mixed_precision):
                     val_pred = self.model(val_img)
+                    val_pred = self.post_processing(val_pred)
                     metrics.loss += self.loss(val_pred, val_gt)
 
                 metrics.accuracy += self._get_acc(val_pred, val_gt)
