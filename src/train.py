@@ -185,7 +185,7 @@ class Trainer:
         Args:
             save_dir: Directory where to save the model's weights
             is_best: To check whether the weights should be saved
-                to the best model (w.r.t. accuracy)
+                for the best model (wrt accuracy)
         """
         if is_best:
             save_path = save_dir.expanduser() / self.BEST_SAVE_NAME
@@ -203,19 +203,16 @@ class Trainer:
             model: The model whose weights are to be replaced in-place with the
                 loaded weights
             load_dir: Directory from where to load the model's weights
-            use_best_model: Whether to load best_model weights(w.r.t. accuracy)
+            use_best_model: Whether to load best_model weights (wrt accuracy)
         """
         load_dir = load_dir.expanduser()
+        if use_best_model:
+            load_path = cls.BEST_SAVE_NAME
+        else:
+            load_path = cls.SAVE_NAME
         # Map to CPU manually, as saved weights might prefer to be on the GPU
         # by default, which would crash if a GPU isn't available.
-        if use_best_model:
-            state_dict = torch.load(
-                load_dir / cls.BEST_SAVE_NAME, map_location="cpu"
-            )
-        else:
-            state_dict = torch.load(
-                load_dir / cls.SAVE_NAME, map_location="cpu"
-            )
+        state_dict = torch.load(load_dir / load_path, map_location="cpu")
         # Loading a GPU model's state dict from a CPU state dict works
         model.load_state_dict(state_dict)
 

@@ -46,9 +46,8 @@ if __name__ == "__main__":
         help="Directory where to dump the model's outputs",
     )
     parser.add_argument(
-        "--use_best_model",
-        type=bool,
-        default=False,
-        help="Whether to use the best model (w.r.t. accuracy)",
+        "--use-best-model",
+        action="store_true",
+        help="Whether to use the best model (wrt accuracy)",
     )
     main(parser.parse_args())

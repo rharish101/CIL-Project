@@ -29,7 +29,7 @@ class Inference:
         Args:
             image_dir: Path to the directory containing the input images
             load_dir: Directory from where to load the model's weights
-            use_best_model: Whether to use the best model (w.r.t. accuracy)
+            use_best_model: Whether to use the best model (wrt accuracy)
             config: The hyper-param config
         """
         self.device = torch.device(
