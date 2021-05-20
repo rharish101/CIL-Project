@@ -10,7 +10,9 @@ from src.infer import Inference
 def main(args: Namespace) -> None:
     """Run the main program."""
     config = load_config(args.config)
-    inference = Inference(args.image_dir, args.load_dir, config)
+    inference = Inference(
+        args.image_dir, args.load_dir, args.use_best_model, config
+    )
     inference.infer(args.output_dir)
 
 
@@ -42,5 +44,10 @@ if __name__ == "__main__":
         type=Path,
         default="outputs",
         help="Directory where to dump the model's outputs",
+    )
+    parser.add_argument(
+        "--use-best-model",
+        action="store_true",
+        help="Whether to use the best model (wrt accuracy)",
     )
     main(parser.parse_args())

@@ -179,37 +179,40 @@ class Trainer:
 
         self.save_weights(timestamped_save_dir)
 
-    def save_weights(self, save_dir: Path) -> None:
+    def save_weights(self, save_dir: Path, is_best: bool = False) -> None:
         """Save the model's weights.
 
         Args:
             save_dir: Directory where to save the model's weights
+            is_best: To check whether the weights should be saved
+                for the best model (wrt accuracy)
         """
-        save_path = save_dir.expanduser() / self.SAVE_NAME
-        torch.save(self.model.state_dict(), save_path)
-
-    def save_best_weights(self, save_dir: Path) -> None:
-        """Save the best model's weights.
-
-        Args:
-            save_dir: Directory where to save the best model's weights
-        """
-        save_path = save_dir.expanduser() / self.BEST_SAVE_NAME
+        if is_best:
+            save_path = save_dir.expanduser() / self.BEST_SAVE_NAME
+        else:
+            save_path = save_dir.expanduser() / self.SAVE_NAME
         torch.save(self.model.state_dict(), save_path)
 
     @classmethod
-    def load_weights(cls, model: Module, load_dir: Path) -> None:
+    def load_weights(
+        cls, model: Module, load_dir: Path, use_best_model: bool
+    ) -> None:
         """Load the model's weights in-place.
 
         Args:
             model: The model whose weights are to be replaced in-place with the
                 loaded weights
             load_dir: Directory from where to load the model's weights
+            use_best_model: Whether to load best_model weights (wrt accuracy)
         """
         load_dir = load_dir.expanduser()
+        if use_best_model:
+            load_path = cls.BEST_SAVE_NAME
+        else:
+            load_path = cls.SAVE_NAME
         # Map to CPU manually, as saved weights might prefer to be on the GPU
         # by default, which would crash if a GPU isn't available.
-        state_dict = torch.load(load_dir / cls.SAVE_NAME, map_location="cpu")
+        state_dict = torch.load(load_dir / load_path, map_location="cpu")
         # Loading a GPU model's state dict from a CPU state dict works
         model.load_state_dict(state_dict)
 
@@ -340,7 +343,7 @@ class Trainer:
         val_metrics = self._get_val_metrics()
         if val_metrics.accuracy > self.best_acc:
             self.best_acc = val_metrics.accuracy
-            self.save_best_weights(timestamped_save_dir)
+            self.save_weights(timestamped_save_dir, True)
 
         for key in vars(train_metrics):
             if key == "loss":

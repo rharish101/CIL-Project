@@ -17,12 +17,19 @@ from .train import Trainer
 class Inference:
     """Class to infer with the model."""
 
-    def __init__(self, image_dir: Path, load_dir: Path, config: Config):
+    def __init__(
+        self,
+        image_dir: Path,
+        load_dir: Path,
+        use_best_model: bool,
+        config: Config,
+    ):
         """Store config and initialize everything.
 
         Args:
             image_dir: Path to the directory containing the input images
             load_dir: Directory from where to load the model's weights
+            use_best_model: Whether to use the best model (wrt accuracy)
             config: The hyper-param config
         """
         self.device = torch.device(
@@ -38,7 +45,7 @@ class Inference:
 
         model = UNet(INPUT_CHANNELS, OUTPUT_CHANNELS, config)
         self.model = DataParallel(model).to(self.device)
-        Trainer.load_weights(self.model, load_dir)
+        Trainer.load_weights(self.model, load_dir, use_best_model)
 
         self.config = config
 
