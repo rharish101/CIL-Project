@@ -12,7 +12,7 @@ from typing_extensions import Final
 # Percentage of pixels > 1 required to assign a foreground label to a patch
 FOREGROUND_THRESHOLD: Final = 0.5
 # Minimum count of pixels classified as road for patch to be predicted as road
-PIXEL_COUNT_THRESHOLD: Final = 10
+PIXEL_COUNT_THRESHOLD: Final = 128
 # Size of each patch as specified in the problem statement
 PATCH_SIZE: Final = 16
 CSV_NAME: Final = "submission.csv"  # name of the output CSV
