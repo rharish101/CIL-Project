@@ -152,7 +152,6 @@ def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
 
     input_transforms = [
         # Color transforms
-        alb.ChannelShuffle(),
         alb.RandomBrightnessContrast(),
         alb.ColorJitter(),
         alb.GaussianBlur(),
