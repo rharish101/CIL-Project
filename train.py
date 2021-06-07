@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Script to train the model."""
+import random
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
 
+import imgaug
 from torch import manual_seed
 
 from src.config import load_config
@@ -13,6 +15,10 @@ def main(args: Namespace) -> None:
     """Run the main program."""
     config = load_config(args.config)
     manual_seed(config.seed)
+    # Set seeds for Albumentation transforms
+    random.seed(config.seed)
+    imgaug.random.seed(config.seed)
+
     trainer = Trainer(args.data_dir, config)
     trainer.train(
         args.save_dir,
