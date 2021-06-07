@@ -88,7 +88,10 @@ def main(args: Namespace) -> None:
         train_dir = args.data_dir.expanduser() / "training/training"
         image_dir = train_dir / "images"
         ground_truth_dir = train_dir / "groundtruth"
-        prediction_dir = args.pred_dir.expanduser()
+        if args.pred_dir is not None:
+            prediction_dir = args.pred_dir.expanduser()
+        else:
+            prediction_dir = None
     else:
         image_dir = args.data_dir.expanduser() / "test_images/test_images/"
         if args.pred_dir is None:
@@ -124,6 +127,6 @@ if __name__ == "__main__":
         "--pred-dir",
         type=Path,
         help="Directory containing the model's predictions for the input data "
-        "(required for test mode)",
+        "(required for test mode to be used as ground truth)",
     )
     main(parser.parse_args())
