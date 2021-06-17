@@ -1,5 +1,5 @@
 """Model definitions."""
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch.cuda.amp import autocast
@@ -235,7 +235,9 @@ class UNet(Module):
         self.bottleneck = down_blocks[-1]
         self.up_blocks = ModuleList(up_blocks_rev[::-1])
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, only_latent: bool = False
+    ) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
         """Segment the inputs."""
         # autocast is needed here since we're using DataParallel
         with autocast(enabled=self.config.mixed_precision):
@@ -246,10 +248,13 @@ class UNet(Module):
             for block in self.down_blocks:
                 down_outputs.append(block(down_outputs[-1]))
 
-            output = self.bottleneck(down_outputs[-1])
+            latent = self.bottleneck(down_outputs[-1])
+            if only_latent:
+                return None, latent
 
             # Going up the U
+            output = latent
             for i, block in enumerate(self.up_blocks, 1):
                 output = block([output, down_outputs[-i]])
 
-            return output
+        return output, latent

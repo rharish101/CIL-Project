@@ -28,6 +28,7 @@ class Config:
             rotation of training inputs
         loss: Which loss to train with. Possible values
             ["logit_bce", "soft_dice"] (8.4.21)
+        shape_loss_weight: The weight for the shape loss term
         prob_fg_thresh: The probable foreground threshold for GrabCut
         unet_depth: The total depth of the UNet architecture in the U
         avgpool: Whether to use a global average pooling path as the UNet
@@ -54,6 +55,7 @@ class Config:
     crop_size: int = 256
     threshold: Optional[float] = None
     loss: str = "logit_bce"
+    shape_loss_weight: float = 1.0
     prob_fg_thresh: int = 32
     unet_depth: int = 7
     avgpool: bool = True

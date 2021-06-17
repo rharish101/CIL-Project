@@ -1,10 +1,10 @@
 """Data loading utilities."""
-
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, List, Tuple, TypeVar
 
 import albumentations as alb
+import numpy as np
 import torch
 from albumentations.core.composition import Compose as AlbCompose
 from albumentations.pytorch import ToTensorV2
@@ -154,11 +154,27 @@ def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
         # Color transforms
         alb.RandomBrightnessContrast(),
         alb.ColorJitter(),
-        alb.GaussianBlur(),
     ]
     return (
         alb.Compose(pair_transforms, additional_targets={"label": "image"}),
         alb.Compose(input_transforms),
+    )
+
+
+def get_texture_transform(config: Config) -> TransformType[np.ndarray]:
+    """Get a batch transform that changes textures but preserves shapes."""
+    transforms = [
+        alb.GaussianBlur(),
+        alb.Downscale(),
+        alb.GaussNoise(),
+        alb.FromFloat("uint8"),
+        alb.JpegCompression(),
+        alb.ToFloat(),
+        ToTensorV2(),
+    ]
+    combined = alb.Compose(transforms)
+    return lambda batch_x: np.stack(
+        [combined(image=x)["image"] for x in batch_x]
     )
 
 
