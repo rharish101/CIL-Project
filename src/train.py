@@ -9,7 +9,8 @@ import numpy as np
 import toml
 import torch
 from torch.cuda.amp import GradScaler, autocast
-from torch.nn import BCEWithLogitsLoss, DataParallel, Module, MSELoss
+from torch.nn import BCEWithLogitsLoss, DataParallel, LogSoftmax, Module
+from torch.nn.functional import cosine_similarity
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
@@ -46,6 +47,35 @@ class _Metrics:
     total_loss: torch.Tensor = 0.0
     accuracy: torch.Tensor = 0.0
     f1_score: torch.Tensor = 0.0
+
+
+class ContrastiveLoss(Module):
+    """A contrastive loss adapted from SimCLR.
+
+    Link to SimCLR: https://arxiv.org/abs/2002.05709v3.
+    """
+
+    def __init__(self, temperature: float = 1.0):
+        """Save hyper-params."""
+        super().__init__()
+        self.temperature = temperature
+        self._log_softmax_fn = LogSoftmax(dim=1)
+
+    def forward(
+        self, inputs: torch.Tensor, targets: torch.Tensor
+    ) -> torch.Tensor:
+        """Get the loss."""
+        inputs = inputs.flatten(1).unsqueeze(-1)  # Now NxDx1
+        targets = targets.flatten(1).unsqueeze(-1)  # Now NxDx1
+
+        # Get all-pairs cosine similarity, like NxDx1 @ 1xDxN
+        similarity = cosine_similarity(
+            inputs, targets.T, eps=torch.finfo(inputs.dtype).eps
+        )
+        log_softmax = self._log_softmax_fn(similarity / self.temperature)
+
+        # Normalize the loss for comparing across batch sizes
+        return -torch.diag(log_softmax).mean() - np.log(len(inputs))
 
 
 class Trainer:
@@ -107,7 +137,7 @@ class Trainer:
             self.class_loss_fn = soft_dice_loss
 
         self.texture_transform = get_texture_transform(config)
-        self.shape_loss_fn = MSELoss()
+        self.shape_loss_fn = ContrastiveLoss(config.temperature)
 
         self.optim = Adam(
             self.model.parameters(),
