@@ -5,7 +5,10 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, Namespace
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 from PIL import Image, ImageTk
+
+from submission import PATCH_SIZE, classify_patch
 
 
 class Visualizer:
@@ -16,6 +19,7 @@ class Visualizer:
         image_dir: Path,
         ground_truth_dir: Path,
         prediction_dir: Optional[Path] = None,
+        down_sampled_output: bool = False,
     ):
         """Initialize the GUI.
 
@@ -26,6 +30,8 @@ class Visualizer:
             prediction_dir: The path to additional binary outputs. If not None,
                 then these will be shown along with the "ground truth" for
                 comparison.
+            down_sampled_output: Whether to display down-sampled outputs (as
+                submitted on Kaggle) instead of the high-resolution versions.
         """
         self.root = tkinter.Tk()
         self.files_index = 0
@@ -35,12 +41,16 @@ class Visualizer:
         for png in self.files:
             im_1 = Image.open(png).convert("RGBA")
             im_2 = Image.open(ground_truth_dir / png.name).convert("RGBA")
+            if down_sampled_output:
+                im_2 = self._down_sample(im_2)
             blended = Image.blend(im_1, im_2, 0.4)
 
             if prediction_dir is not None:
                 back = Image.new("RGBA", im_1.size, color="black")
                 front = Image.new("RGBA", im_1.size, color="green")
                 mask = Image.open(prediction_dir / png.name)
+                if down_sampled_output:
+                    mask = self._down_sample(mask)
                 pred = Image.composite(front, back, mask)
                 blended = Image.blend(blended, pred, 0.3)
 
@@ -58,6 +68,22 @@ class Visualizer:
         )
         self.root.title(self.files[self.files_index])
         self.root.bind("<KeyPress>", self.navigate)
+
+    @staticmethod
+    def _down_sample(image_pil: Image.Image) -> Image.Image:
+        """Down sample as per the Kaggle submission."""
+        image = np.array(image_pil).astype(np.float32) / 255
+        output_img = np.empty(image.shape[:2], dtype=np.uint8)
+
+        for row in range(0, image.shape[0], PATCH_SIZE):
+            for col in range(0, image.shape[1], PATCH_SIZE):
+                patch = image[row : row + PATCH_SIZE, col : col + PATCH_SIZE]
+                label = classify_patch(patch)
+                output_img[row : row + PATCH_SIZE, col : col + PATCH_SIZE] = (
+                    label * 255
+                )
+
+        return Image.fromarray(output_img).convert(image_pil.mode)
 
     def navigate(self, event) -> None:
         """Handle keypresses for navigation."""
@@ -101,7 +127,12 @@ def main(args: Namespace) -> None:
         ground_truth_dir = args.pred_dir.expanduser()
         prediction_dir = None
 
-    gui = Visualizer(image_dir, ground_truth_dir, prediction_dir)
+    gui = Visualizer(
+        image_dir,
+        ground_truth_dir,
+        prediction_dir,
+        down_sampled_output=args.down_sample,
+    )
     gui.run()
 
 
@@ -128,5 +159,10 @@ if __name__ == "__main__":
         type=Path,
         help="Directory containing the model's predictions for the input data "
         "(required for test mode to be used as ground truth)",
+    )
+    parser.add_argument(
+        "--down-sample",
+        action="store_true",
+        help="Whether to show down-sampled outputs (used for Kaggle)",
     )
     main(parser.parse_args())
