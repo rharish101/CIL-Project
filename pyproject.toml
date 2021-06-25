@@ -8,6 +8,12 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.pydocstyle]
+convention = "google"
+
 [tool.poetry]
 name = "cil-project"
 version = "0.1.0"

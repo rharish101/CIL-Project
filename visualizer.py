@@ -66,7 +66,7 @@ class Visualizer:
         self.root.geometry(
             f"{initial_image.width() + 4}x{initial_image.height() + 4}"
         )
-        self.root.title(self.files[self.files_index])
+        self.root.title(str(self.files[self.files_index]))
         self.root.bind("<KeyPress>", self.navigate)
 
     @staticmethod
@@ -100,7 +100,7 @@ class Visualizer:
         # Position image
         label1_new.place(x=0, y=0)
 
-        self.root.title(self.files[self.files_index])
+        self.root.title(str(self.files[self.files_index]))
 
     def run(self) -> None:
         """Start the GUI."""
