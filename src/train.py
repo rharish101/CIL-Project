@@ -65,9 +65,11 @@ class ContrastiveLoss(Module):
         self, inputs: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
         """Get the loss."""
+        # BxCxHxW => (B*H*W)xC == NxD
+        inputs = inputs.permute(0, 2, 3, 1).flatten(end_dim=-2)
+        targets = targets.permute(0, 2, 3, 1).flatten(end_dim=-2)
+
         batch_size = inputs.shape[0]
-        inputs = inputs.flatten(1)  # Now NxD
-        targets = targets.flatten(1)  # Now NxD
         combined = torch.cat([inputs, targets], 0).unsqueeze(-1)  # Now 2NxDx1
 
         # Get all-pairs cosine similarity, like 2NxD @ Dx2N

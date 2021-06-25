@@ -59,8 +59,8 @@ class Config:
     shape_loss_weight: float = 1e-2
     temperature: float = 1.0
     prob_fg_thresh: int = 32
-    unet_depth: int = 7
-    avgpool: bool = True
+    unet_depth: int = 6
+    avgpool: bool = False
     init_channels: int = 64
     max_channels: int = 1024
     lbl_fg_thresh: float = 0.5
