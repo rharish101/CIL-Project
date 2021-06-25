@@ -56,7 +56,7 @@ class Config:
     crop_size: int = 256
     threshold: Optional[float] = None
     loss: str = "logit_bce"
-    shape_loss_weight: float = 1.0
+    shape_loss_weight: float = 1e-2
     temperature: float = 1.0
     prob_fg_thresh: int = 32
     unet_depth: int = 7

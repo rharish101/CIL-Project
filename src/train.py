@@ -65,17 +65,38 @@ class ContrastiveLoss(Module):
         self, inputs: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
         """Get the loss."""
-        inputs = inputs.flatten(1).unsqueeze(-1)  # Now NxDx1
-        targets = targets.flatten(1).unsqueeze(-1)  # Now NxDx1
+        batch_size = inputs.shape[0]
+        inputs = inputs.flatten(1)  # Now NxD
+        targets = targets.flatten(1)  # Now NxD
+        combined = torch.cat([inputs, targets], 0).unsqueeze(-1)  # Now 2NxDx1
 
-        # Get all-pairs cosine similarity, like NxDx1 @ 1xDxN
+        # Get all-pairs cosine similarity, like 2NxD @ Dx2N
         similarity = cosine_similarity(
-            inputs, targets.T, eps=torch.finfo(inputs.dtype).eps
-        )
+            combined, combined.T, eps=torch.finfo(combined.dtype).eps
+        )  # Now 2Nx2N
+
+        # Mask out the self values
+        mask = torch.eye(2 * batch_size).bool().to(similarity.device)
+        neg_inf = float("-inf") * torch.ones_like(similarity)
+        similarity = torch.where(mask, neg_inf, similarity)
+
         log_softmax = self._log_softmax_fn(similarity / self.temperature)
 
-        # Normalize the loss for comparing across batch sizes
-        return -torch.diag(log_softmax).mean() - np.log(len(inputs))
+        # All positive pairs are (i, N+i mod 2N)
+        # - - - x - -
+        # - - - - x -
+        # - - - - - x
+        # x - - - - -
+        # - x - - - -
+        # - - x - - -
+        positive_pairs = torch.cat(
+            [
+                torch.diag(log_softmax, batch_size),
+                torch.diag(log_softmax, -batch_size),
+            ],
+            -1,
+        )
+        return -(positive_pairs).mean()
 
 
 class Trainer:
