@@ -65,22 +65,26 @@ class ContrastiveLoss(Module):
         self, inputs: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
         """Get the loss."""
-        # BxCxHxW => (B*H*W)xC == NxD
-        inputs = inputs.permute(0, 2, 3, 1).flatten(end_dim=-2)
-        targets = targets.permute(0, 2, 3, 1).flatten(end_dim=-2)
+        # BxCxHxW => HxWxBxC == ...xNxD
+        inputs = inputs.permute(2, 3, 0, 1)
+        targets = targets.permute(2, 3, 0, 1)
 
-        batch_size = inputs.shape[0]
-        combined = torch.cat([inputs, targets], 0).unsqueeze(-1)  # Now 2NxDx1
+        batch_size = inputs.shape[-2]
+        left = torch.cat([inputs, targets], -2).unsqueeze(-1)  # ...x2NxDx1
+        right = left.permute(0, 1, 4, 3, 2)  # ...x1xDx2N
 
-        # Get all-pairs cosine similarity, like 2NxD @ Dx2N
+        # Get all-pairs cosine similarity, like ...x2NxD @ ...xDx2N
         similarity = cosine_similarity(
-            combined, combined.T, eps=torch.finfo(combined.dtype).eps
-        )  # Now 2Nx2N
+            left, right, dim=-2, eps=torch.finfo(left.dtype).eps
+        )  # Now ...x2Nx2N
 
         # Mask out the self values
-        mask = torch.eye(2 * batch_size).bool().to(similarity.device)
+        mask = torch.eye(2 * batch_size, device=similarity.device).bool()
+        mask_nd = (
+            mask.unsqueeze(0).unsqueeze(0).tile(*similarity.shape[:2], 1, 1)
+        )
         neg_inf = float("-inf") * torch.ones_like(similarity)
-        similarity = torch.where(mask, neg_inf, similarity)
+        similarity = torch.where(mask_nd, neg_inf, similarity)
 
         log_softmax = self._log_softmax_fn(similarity / self.temperature)
 
@@ -93,8 +97,12 @@ class ContrastiveLoss(Module):
         # - - x - - -
         positive_pairs = torch.cat(
             [
-                torch.diag(log_softmax, batch_size),
-                torch.diag(log_softmax, -batch_size),
+                torch.diagonal(
+                    log_softmax, offset=batch_size, dim1=-2, dim2=-1
+                ),
+                torch.diagonal(
+                    log_softmax, offset=-batch_size, dim1=-2, dim2=-1
+                ),
             ],
             -1,
         )
