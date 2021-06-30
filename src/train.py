@@ -451,10 +451,13 @@ class Trainer:
             train_writer.add_scalar(tag, getattr(train_metrics, key), step)
             val_writer.add_scalar(tag, getattr(val_metrics, key), step)
 
+        reg_loss = self._get_l2_reg()
+        train_writer.add_scalar("losses/regularization", reg_loss, step)
         train_writer.add_scalar("losses/shape", train_metrics.shape_loss, step)
-        train_writer.add_scalar("losses/total", train_metrics.total_loss, step)
         train_writer.add_scalar(
-            "losses/regularization", self._get_l2_reg(), step
+            "losses/total",
+            train_metrics.total_loss + self.config.weight_decay * reg_loss,
+            step,
         )
 
         # Log a histogram for each tensor parameter in the model, to
