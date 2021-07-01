@@ -10,3 +10,7 @@ cil-road-segmentation-2021/
 
 # Dump custom configs here
 configs/
+
+# Jetbrain logs
+.DS_Store
+.idea/
