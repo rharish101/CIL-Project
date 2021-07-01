@@ -25,7 +25,7 @@ def apply_graph_cut(mask_path: str, iteration_count: int) -> np.ndarray:
     """
     # Load mask in grayscale mode and mask image itself
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-    mask_image = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    mask_image = cv2.imread(mask_path)
 
     # Assigning grabcut mask values
     cut_mask = mask > PROBABLE_FOREGROUND_THRESHOLD
