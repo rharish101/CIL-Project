@@ -52,7 +52,7 @@ def apply_graph_cut(mask_path: str, iteration_count: int) -> np.ndarray:
 
 def main(args: argparse.Namespace) -> None:
     """Run the main program."""
-    output_dir = args.mask_dir.expanduser() / "graph_cut"
+    output_dir = args.output_dir
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 
@@ -87,6 +87,13 @@ if __name__ == "__main__":
         type=int,
         default=10,
         help="# of GrabCut iterations (larger value => slower runtime)",
+    )
+    ap.add_argument(
+        "-o",
+        "--output-dir",
+        type=Path,
+        default="outputs/graph_cut",
+        help="Directory where to dump the model's outputs",
     )
 
     main(ap.parse_args())
