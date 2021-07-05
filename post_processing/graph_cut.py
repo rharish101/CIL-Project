@@ -52,7 +52,7 @@ def apply_graph_cut(mask_path: str, iteration_count: int) -> np.ndarray:
 
 def main(args: argparse.Namespace) -> None:
     """Run the main program."""
-    output_dir = args.output_dir
+    output_dir = args.output_dir.expanduser()
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 
