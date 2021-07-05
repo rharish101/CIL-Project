@@ -78,6 +78,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "-m",
         "--mask-dir",
+        default="outputs",
         type=Path,
         help="path to input mask files directory",
     )
