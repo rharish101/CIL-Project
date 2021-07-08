@@ -29,6 +29,13 @@ class Config:
         threshold: None means greyscale, otherwise threshold for logit.
         loss: Which loss to train with. Possible values
             ["logit_bce", "soft_dice"] (8.4.21)
+        unet_depth: The total depth of the UNet architecture in the U
+        avgpool: Whether to use a global average pooling path as the UNet
+            bottleneck (at the lowest depth)
+        init_channels: The number of channels for the first layer in the
+            architecture
+        max_channels: The maximum number of channels for any layer in the
+            architecture
     """
 
     learn_rate: float = 1e-4
@@ -45,6 +52,10 @@ class Config:
     crop_size: int = 128
     threshold: Optional[float] = None
     loss: str = "logit_bce"
+    unet_depth: int = 7
+    avgpool: bool = True
+    init_channels: int = 64
+    max_channels: int = 1024
 
 
 def load_config(config_path: Optional[Path]) -> Config:

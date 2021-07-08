@@ -193,58 +193,47 @@ class UNet(Module):
         # Each block starts after the previous block, and terminates at a point
         # where either a skip connection starts or ends
 
-        down_blocks = [
-            ResBlock(in_channels, 64),
-            Sequential(
-                MaxPool2d(2), ResBlock(64, 128, dropout=config.dropout)
-            ),
-            Sequential(
-                MaxPool2d(2), ResBlock(128, 256, dropout=config.dropout)
-            ),
-            Sequential(
-                MaxPool2d(2), ResBlock(256, 512, dropout=config.dropout)
-            ),
-            Sequential(
-                MaxPool2d(2), ResBlock(512, 1024, dropout=config.dropout)
-            ),
-            Sequential(
-                MaxPool2d(2), ResBlock(1024, 1024, dropout=config.dropout)
-            ),
-        ]
-        self.down_blocks = ModuleList(down_blocks)
+        down_blocks = [ResBlock(in_channels, config.init_channels)]
+        up_blocks_rev = []
+        curr_channels = config.init_channels
 
-        self.bottleneck = Sequential(
-            AdaptiveAvgPool2d(1), ResBlock(1024, 1024, dropout=config.dropout)
-        )
+        for i in range(config.unet_depth - 1):
+            next_channels = min(curr_channels * 2, config.max_channels)
 
-        up_blocks = [
-            Sequential(
-                CombineBlock(1024, 1024, dropout=config.dropout),
-                ResBlock(2048, 1024, dropout=config.dropout),
-            ),
-            Sequential(
-                CombineBlock(1024, 1024, dropout=config.dropout),
-                ResBlock(2048, 1024, dropout=config.dropout),
-            ),
-            Sequential(
-                CombineBlock(1024, 512, dropout=config.dropout),
-                ResBlock(1024, 512, dropout=config.dropout),
-            ),
-            Sequential(
-                CombineBlock(512, 256, dropout=config.dropout),
-                ResBlock(512, 256, dropout=config.dropout),
-            ),
-            Sequential(
-                CombineBlock(256, 128, dropout=config.dropout),
-                ResBlock(256, 128, dropout=config.dropout),
-            ),
-            Sequential(
-                CombineBlock(128, 64, dropout=config.dropout),
-                ResBlock(128, 64, dropout=config.dropout),
-                Conv2d(64, out_channels, kernel_size=1),
-            ),
-        ]
-        self.up_blocks = ModuleList(up_blocks)
+            if config.avgpool and i == config.unet_depth - 2:
+                downsampler = AdaptiveAvgPool2d(1)
+            else:
+                downsampler = MaxPool2d(2)
+            down_blocks.append(
+                Sequential(
+                    downsampler,
+                    ResBlock(
+                        curr_channels, next_channels, dropout=config.dropout
+                    ),
+                )
+            )
+
+            up_block_layers = [
+                CombineBlock(
+                    next_channels, curr_channels, dropout=config.dropout
+                ),
+                ResBlock(
+                    2 * curr_channels,  # due to skip connection concatenation
+                    curr_channels,
+                    dropout=config.dropout,
+                ),
+            ]
+            if i == 0:
+                up_block_layers.append(
+                    Conv2d(curr_channels, out_channels, kernel_size=1)
+                )
+            up_blocks_rev.append(Sequential(*up_block_layers))
+
+            curr_channels = next_channels
+
+        self.down_blocks = ModuleList(down_blocks[:-1])
+        self.bottleneck = down_blocks[-1]
+        self.up_blocks = ModuleList(up_blocks_rev[::-1])
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Segment the inputs."""
