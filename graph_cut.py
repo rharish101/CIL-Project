@@ -81,7 +81,10 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     # construct the argument parser and parse the arguments
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Apply graph cut post processing on outputs",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     ap.add_argument(
         "-c",
         "--config",
