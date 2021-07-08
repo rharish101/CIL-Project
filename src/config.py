@@ -29,6 +29,7 @@ class Config:
         threshold: None means greyscale, otherwise threshold for logit.
         loss: Which loss to train with. Possible values
             ["logit_bce", "soft_dice"] (8.4.21)
+        prob_fg_thresh: The probable foreground threshold for GrabCut
     """
 
     learn_rate: float = 1e-4
@@ -45,6 +46,7 @@ class Config:
     crop_size: int = 128
     threshold: Optional[float] = None
     loss: str = "logit_bce"
+    prob_fg_thresh: int = 32
 
 
 def load_config(config_path: Optional[Path]) -> Config:
