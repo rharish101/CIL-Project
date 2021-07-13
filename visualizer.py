@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image, ImageTk
 
-from submission import PATCH_SIZE, classify_patch
+from submission import FOREGROUND_THRESHOLD, PATCH_SIZE, classify_patch
 
 
 class Visualizer:
@@ -20,6 +20,7 @@ class Visualizer:
         ground_truth_dir: Path,
         prediction_dir: Optional[Path] = None,
         down_sampled_output: bool = False,
+        quantized_output: bool = False,
     ):
         """Initialize the GUI.
 
@@ -32,6 +33,8 @@ class Visualizer:
                 comparison.
             down_sampled_output: Whether to display down-sampled outputs (as
                 submitted on Kaggle) instead of the high-resolution versions.
+            quantized_output: Whether to display quantized (B/W) outputs
+                instead of the grayscale versions.
         """
         self.root = tkinter.Tk()
         self.files_index = 0
@@ -43,6 +46,8 @@ class Visualizer:
             im_2 = Image.open(ground_truth_dir / png.name).convert("RGBA")
             if down_sampled_output:
                 im_2 = self._down_sample(im_2)
+            elif quantized_output:
+                im_2 = self._quantize(im_2)
             blended = Image.blend(im_1, im_2, 0.4)
 
             if prediction_dir is not None:
@@ -51,6 +56,8 @@ class Visualizer:
                 mask = Image.open(prediction_dir / png.name)
                 if down_sampled_output:
                     mask = self._down_sample(mask)
+                elif quantized_output:
+                    mask = self._quantize(mask)
                 pred = Image.composite(front, back, mask)
                 blended = Image.blend(blended, pred, 0.3)
 
@@ -70,9 +77,21 @@ class Visualizer:
         self.root.bind("<KeyPress>", self.navigate)
 
     @staticmethod
-    def _down_sample(image_pil: Image.Image) -> Image.Image:
+    def _pil_to_np(image: Image.Image) -> np.ndarray:
+        """Convert PIL images to [0, 1] float images."""
+        return np.array(image).astype(np.float32) / 255
+
+    @classmethod
+    def _quantize(cls, image_pil: Image.Image) -> Image.Image:
+        """Quantize a grayscale image to black-and-white."""
+        image = cls._pil_to_np(image_pil)
+        image_bw = np.uint8(image > FOREGROUND_THRESHOLD) * 255
+        return Image.fromarray(image_bw).convert(image_pil.mode)
+
+    @classmethod
+    def _down_sample(cls, image_pil: Image.Image) -> Image.Image:
         """Down sample as per the Kaggle submission."""
-        image = np.array(image_pil).astype(np.float32) / 255
+        image = cls._pil_to_np(image_pil)
         output_img = np.empty(image.shape[:2], dtype=np.uint8)
 
         for row in range(0, image.shape[0], PATCH_SIZE):
@@ -132,6 +151,7 @@ def main(args: Namespace) -> None:
         ground_truth_dir,
         prediction_dir,
         down_sampled_output=args.down_sample,
+        quantized_output=args.quantize,
     )
     gui.run()
 
@@ -164,5 +184,10 @@ if __name__ == "__main__":
         "--down-sample",
         action="store_true",
         help="Whether to show down-sampled outputs (used for Kaggle)",
+    )
+    parser.add_argument(
+        "--quantize",
+        action="store_true",
+        help="Whether to show quantized (B/W) outputs instead of grayscale",
     )
     main(parser.parse_args())
