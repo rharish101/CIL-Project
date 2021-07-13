@@ -40,18 +40,19 @@ class Config:
             foreground
     """
 
-    learn_rate: float = 1e-4
-    max_learn_rate: float = 2e-4
+    learn_rate: float = 5e-5
+    max_learn_rate: float = 1e-4
     balanced_loss: bool = False
-    dropout: float = 0.2
-    weight_decay: float = 5e-6
-    train_batch_size: int = 16
-    test_batch_size: int = 6
-    epochs: int = 150
+    dropout: float = 0.1
+    weight_decay: float = 1e-5
+    train_batch_size: int = 24
+    test_batch_size: int = 16
+    epochs: int = 8000
     val_split: float = 0.2
-    mixed_precision: bool = False
+    mixed_precision: bool = True
     seed: int = 0
-    crop_size: int = 128
+    crop_size: int = 256
+    threshold: Optional[float] = None
     loss: str = "logit_bce"
     prob_fg_thresh: int = 32
     unet_depth: int = 7
