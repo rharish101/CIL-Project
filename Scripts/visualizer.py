@@ -7,9 +7,9 @@ from typing import Optional
 
 import numpy as np
 from PIL import Image, ImageTk
-from submission import PATCH_SIZE, classify_patch
 
 from src.config import Config, load_config
+from submission import PATCH_SIZE, classify_patch
 
 
 class Visualizer:
@@ -43,9 +43,7 @@ class Visualizer:
 
         self.root = tkinter.Tk()
         self.files_index = 0
-
         self.files = sorted(image_dir.glob("*"))
-        print(image_dir)
         self.superimposed_images = dict()
         for png in self.files:
             im_1 = Image.open(png).convert("RGBA")
