@@ -8,11 +8,11 @@ import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from typing_extensions import Final
 
 from src.config import Config, load_config
 
-IMG_EXTENSION = "png"
-PROBABLE_FOREGROUND_THRESHOLD = 32  # Out of 255
+IMG_EXTENSION: Final = "png"
 
 
 def apply_graph_cut(
