@@ -26,7 +26,6 @@ class Config:
         crop_size: The height/width of the randomly cropped training inputs
         rotation_range: The max absolute rotation in degrees for random
             rotation of training inputs
-        threshold: None means greyscale, otherwise threshold for logit.
         loss: Which loss to train with. Possible values
             ["logit_bce", "soft_dice"] (8.4.21)
         prob_fg_thresh: The probable foreground threshold for GrabCut
@@ -53,7 +52,6 @@ class Config:
     mixed_precision: bool = False
     seed: int = 0
     crop_size: int = 128
-    threshold: Optional[float] = None
     loss: str = "logit_bce"
     prob_fg_thresh: int = 32
     unet_depth: int = 7
