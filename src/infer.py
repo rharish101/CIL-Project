@@ -69,11 +69,7 @@ class Inference:
                 with autocast(enabled=self.config.mixed_precision):
                     logits = self.model(images)
 
-                # Get binary output of either 0.0 or 1.0
-                if self.config.threshold is not None:
-                    predictions = (logits > self.config.threshold).float()
-                else:
-                    predictions = torch.sigmoid(logits)
+                predictions = torch.sigmoid(logits)
                 # Convert float32 in [0, 1] to uint8 in [0, 255]
                 outputs = (predictions * 255).squeeze(1).byte()
                 # Pillow needs numpy ndarrays; it fails with PyTorch tensors

@@ -8,7 +8,8 @@ from typing import Optional
 import numpy as np
 from PIL import Image, ImageTk
 
-from submission import FOREGROUND_THRESHOLD, PATCH_SIZE, classify_patch
+from src.config import Config, load_config
+from submission import PATCH_SIZE, classify_patch
 
 
 class Visualizer:
@@ -16,6 +17,7 @@ class Visualizer:
 
     def __init__(
         self,
+        config: Config,
         image_dir: Path,
         ground_truth_dir: Path,
         prediction_dir: Optional[Path] = None,
@@ -25,6 +27,7 @@ class Visualizer:
         """Initialize the GUI.
 
         Args:
+            config: The hyper-param config
             image_dir: The path to the input images
             ground_truth_dir: The path to the binary outputs. This can be
                 either ground truth (for the training data), or predictions.
@@ -36,6 +39,8 @@ class Visualizer:
             quantized_output: Whether to display quantized (B/W) outputs
                 instead of the grayscale versions.
         """
+        self.config = config
+
         self.root = tkinter.Tk()
         self.files_index = 0
 
@@ -81,23 +86,21 @@ class Visualizer:
         """Convert PIL images to [0, 1] float images."""
         return np.array(image).astype(np.float32) / 255
 
-    @classmethod
-    def _quantize(cls, image_pil: Image.Image) -> Image.Image:
+    def _quantize(self, image_pil: Image.Image) -> Image.Image:
         """Quantize a grayscale image to black-and-white."""
-        image = cls._pil_to_np(image_pil)
-        image_bw = np.uint8(image > FOREGROUND_THRESHOLD) * 255
+        image = self._pil_to_np(image_pil)
+        image_bw = np.uint8(image > self.config.lbl_fg_thresh) * 255
         return Image.fromarray(image_bw).convert(image_pil.mode)
 
-    @classmethod
-    def _down_sample(cls, image_pil: Image.Image) -> Image.Image:
+    def _down_sample(self, image_pil: Image.Image) -> Image.Image:
         """Down sample as per the Kaggle submission."""
-        image = cls._pil_to_np(image_pil)
+        image = self._pil_to_np(image_pil)
         output_img = np.empty(image.shape[:2], dtype=np.uint8)
 
         for row in range(0, image.shape[0], PATCH_SIZE):
             for col in range(0, image.shape[1], PATCH_SIZE):
                 patch = image[row : row + PATCH_SIZE, col : col + PATCH_SIZE]
-                label = classify_patch(patch)
+                label = classify_patch(patch, self.config)
                 output_img[row : row + PATCH_SIZE, col : col + PATCH_SIZE] = (
                     label * 255
                 )
@@ -129,6 +132,8 @@ class Visualizer:
 
 def main(args: Namespace) -> None:
     """Run the main program."""
+    config = load_config(args.config)
+
     if args.mode == "train":
         train_dir = args.data_dir.expanduser() / "training/training"
         image_dir = train_dir / "images"
@@ -147,6 +152,7 @@ def main(args: Namespace) -> None:
         prediction_dir = None
 
     gui = Visualizer(
+        config,
         image_dir,
         ground_truth_dir,
         prediction_dir,
@@ -166,6 +172,12 @@ if __name__ == "__main__":
         metavar="DIR",
         type=Path,
         help="Path to the directory where the CIL data is extracted",
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        help="Path to a TOML config containing hyper-parameter values",
     )
     parser.add_argument(
         "-m",
