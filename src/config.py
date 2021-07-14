@@ -37,6 +37,8 @@ class Config:
             architecture
         max_channels: The maximum number of channels for any layer in the
             architecture
+        lbl_fg_thresh: The threshold for the image in [0, 1] to be labelled as
+            foreground
     """
 
     learn_rate: float = 1e-4
@@ -58,6 +60,7 @@ class Config:
     avgpool: bool = True
     init_channels: int = 64
     max_channels: int = 1024
+    lbl_fg_thresh: float = 0.5
 
 
 def load_config(config_path: Optional[Path]) -> Config:
