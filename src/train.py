@@ -59,7 +59,7 @@ class ContrastiveLoss(Module):
         """Save hyper-params."""
         super().__init__()
         self.temperature = temperature
-        self._log_softmax_fn = LogSoftmax(dim=1)
+        self._log_softmax_fn = LogSoftmax(dim=-1)
 
     def forward(
         self, inputs: torch.Tensor, targets: torch.Tensor
