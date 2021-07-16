@@ -99,13 +99,13 @@ class ContrastiveLoss(Module):
             [
                 torch.diagonal(
                     log_softmax, offset=batch_size, dim1=-2, dim2=-1
-                ),
+                ),  # ...xN
                 torch.diagonal(
                     log_softmax, offset=-batch_size, dim1=-2, dim2=-1
-                ),
+                ),  # ...xN
             ],
             -1,
-        )
+        )  # ...x2N
         return -(positive_pairs).mean()
 
 
