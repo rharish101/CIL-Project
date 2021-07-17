@@ -275,8 +275,14 @@ class Trainer:
             loss += (param ** 2).sum()
         return loss
 
-    def _get_val_metrics(self) -> _Metrics:
-        """Get the metrics on the validation dataset."""
+    def _get_val_metrics(
+        self,
+    ) -> Tuple[_Metrics, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Get the metrics on the validation dataset.
+
+        This also returns the inputs, ground-truth, and predictions for the
+        last batch of images.
+        """
         # Turn off batch-norm updates
         self.model.eval()
 
@@ -300,7 +306,7 @@ class Trainer:
             metrics.accuracy /= len(self.val_loader)
             metrics.f1_score /= len(self.val_loader)
 
-        return metrics
+        return metrics, val_img, val_gt, torch.sigmoid(val_pred)
 
     @staticmethod
     def _get_acc(logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -340,7 +346,7 @@ class Trainer:
         step: int,
     ) -> None:
         """Log metrics for both training and validation."""
-        val_metrics = self._get_val_metrics()
+        val_metrics, val_img, val_gt, val_pred = self._get_val_metrics()
         if val_metrics.accuracy > self.best_acc:
             self.best_acc = val_metrics.accuracy
             self.save_weights(timestamped_save_dir, True)
@@ -362,6 +368,11 @@ class Trainer:
         # see if a parameter is training stably or not
         for name, value in self.model.state_dict().items():
             train_writer.add_histogram(name, value, step)
+
+        # Log the validation images for easy visualization
+        val_writer.add_images("input", val_img, step)
+        val_writer.add_images("ground_truth", val_gt, step)
+        val_writer.add_images("prediction", val_pred, step)
 
     def _get_loss_weight(self) -> torch.Tensor:
         """Get the scalar weight for the positive class in the loss.
