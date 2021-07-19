@@ -164,10 +164,10 @@ def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
 def get_texture_transform(config: Config) -> TransformType[np.ndarray]:
     """Get a batch transform that changes textures but preserves shapes."""
     transforms = [
+        alb.FromFloat("uint8"),
         alb.GaussianBlur(),
         alb.Downscale(),
         alb.GaussNoise(),
-        alb.FromFloat("uint8"),
         alb.JpegCompression(),
         alb.ToFloat(),
         ToTensorV2(),
