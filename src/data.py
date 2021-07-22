@@ -154,6 +154,7 @@ def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
         # Color transforms
         alb.RandomBrightnessContrast(),
         alb.ColorJitter(),
+        alb.GaussianBlur(),
     ]
     return (
         alb.Compose(pair_transforms, additional_targets={"label": "image"}),
@@ -166,9 +167,15 @@ def get_texture_transform(config: Config) -> TransformType[np.ndarray]:
     transforms = [
         alb.FromFloat("uint8"),
         alb.GaussianBlur(),
-        alb.Downscale(),
+        alb.Downscale(
+            scale_min=config.downscale_min, scale_max=config.downscale_max
+        ),
+        alb.ImageCompression(
+            quality_lower=config.compress_quality_lower,
+            quality_upper=config.compress_quality_upper,
+        ),
         alb.GaussNoise(),
-        alb.JpegCompression(),
+        alb.ISONoise(),
         alb.ToFloat(),
         ToTensorV2(),
     ]

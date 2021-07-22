@@ -40,6 +40,14 @@ class Config:
             architecture
         lbl_fg_thresh: The threshold for the image in [0, 1] to be labelled as
             foreground
+        downscale_min: The lower bound for the downscaling in the texture
+            transformation
+        downscale_max: The upper bound for the downscaling in the texture
+            transformation
+        compress_quality_lower: The lower bound for the JPEG compression in the
+            texture transformation
+        compress_quality_upper: The upper bound for the JPEG compression in the
+            texture transformation
     """
 
     learn_rate: float = 5e-5
@@ -64,6 +72,10 @@ class Config:
     init_channels: int = 64
     max_channels: int = 1024
     lbl_fg_thresh: float = 0.5
+    downscale_min: float = 0.5
+    downscale_max: float = 0.75
+    compress_quality_lower: float = 20
+    compress_quality_upper: float = 50
 
 
 def load_config(config_path: Optional[Path]) -> Config:
