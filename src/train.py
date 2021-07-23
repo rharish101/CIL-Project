@@ -231,11 +231,16 @@ class Trainer:
                 prediction, latent = self.model(image)
                 class_loss = self.class_loss_fn(prediction, ground_truth)
 
-                image_np = np.moveaxis(image.cpu().numpy(), 1, 3)
-                other_image_np = self.texture_transform(image_np)
-                other_image = torch.from_numpy(other_image_np).to(self.device)
-                other_latent = self.model(other_image, only_latent=True)[1]
-                shape_loss = self.shape_loss_fn(latent, other_latent)
+                if self.config.shape_loss_weight > 0:
+                    image_np = np.moveaxis(image.cpu().numpy(), 1, 3)
+                    other_image_np = self.texture_transform(image_np)
+                    other_image = torch.from_numpy(other_image_np).to(
+                        self.device
+                    )
+                    other_latent = self.model(other_image, only_latent=True)[1]
+                    shape_loss = self.shape_loss_fn(latent, other_latent)
+                else:
+                    shape_loss = 0.0
 
                 loss = class_loss + self.config.shape_loss_weight * shape_loss
 
