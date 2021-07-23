@@ -124,10 +124,12 @@ class TestDataset(Dataset):
     def get_transform() -> TransformType:
         """Get the transformation for the test data."""
         transforms = Compose(
-            # Resize input images to 400x400
-            Resize((400, 400)),
-            # Scale from uint8 [0, 255] to float32 [0, 1]
-            Lambda(lambda x: x.float() / 255),
+            [
+                # Resize input images to 400x400
+                Resize((400, 400)),
+                # Scale from uint8 [0, 255] to float32 [0, 1]
+                Lambda(lambda x: x.float() / 255),
+            ]
         )
 
         return transforms
