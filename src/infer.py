@@ -78,5 +78,5 @@ class Inference:
                 for img, name in zip(outputs_np, names):
                     path = output_dir / name
 
-                    Image.fromarray(img).save(path)
+                    Image.fromarray(img).resize((608, 608)).save(path)
                     progress_bar.update()
