@@ -10,7 +10,7 @@ from albumentations.core.composition import Compose as AlbCompose
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from torchvision.io import read_image
-from torchvision.transforms import Compose, Lambda
+from torchvision.transforms import Compose, Lambda, Resize
 from typing_extensions import Final
 
 from .config import Config
@@ -117,13 +117,20 @@ class TestDataset(Dataset):
         """Get the image at the given index."""
         image_path = self.image_paths[idx]
         image = read_image(str(image_path))
+
         return self.transform(image), image_path.name
 
     @staticmethod
     def get_transform() -> TransformType:
         """Get the transformation for the test data."""
-        # Scale from uint8 [0, 255] to float32 [0, 1]
-        return Lambda(lambda x: x.float() / 255)
+        transforms = Compose(
+            # Resize input images to 400x400
+            Resize((400, 400)),
+            # Scale from uint8 [0, 255] to float32 [0, 1]
+            Lambda(lambda x: x.float() / 255),
+        )
+
+        return transforms
 
 
 def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
