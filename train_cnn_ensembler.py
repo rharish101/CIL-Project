@@ -79,13 +79,14 @@ def train_cnn(
 ) -> None:
     """Trains the cnn."""
     train_x, val_x, train_y, val_y = train_test_split(
-        train_x, train_y, test_size=0.1
+        train_x, train_y, test_size=0.01
     )
 
     loss = BCEWithLogitsLoss()
     optim = Adam(
         cnn.parameters(),
         lr=learning_rate,
+        weight_decay=5e-6,
     )
 
     with tqdm(
@@ -93,18 +94,21 @@ def train_cnn(
     ) as progress_bar:
         total_iterations = 0
         test_loss = 0
-        lowest_test_loss: float = 1.0
+        lowest_train_loss: float = 1.0
 
         cnn.to(DEVICE)
         val_x = val_x.to(DEVICE)
         val_y = val_y.to(DEVICE)
 
+        avg_train_loss = 0.0
         for epoch in range(int(iterations / len(train_x))):
 
             perm = torch.randperm(len(train_x))
             train_x = train_x[perm]
             train_y = train_y[perm]
 
+            cum_train_loss = 0.0
+            num_batches = 0
             for i in range(0, len(train_x), batch_size):
 
                 optim.zero_grad()
@@ -123,24 +127,32 @@ def train_cnn(
                     cnn.eval()
                     pred_val_y = cnn(val_x)
                     test_loss = loss(pred_val_y, val_y)
-                    if test_loss < lowest_test_loss:
-                        lowest_test_loss = float(test_loss)
-                        file_names = [
-                            file.split("/")[-1]
-                            for file in glob.glob("outputs/*.png")
-                        ]
-                        apply_cnn(cnn, test_x, "ensembler_outputs", file_names)
                     cnn.train()
 
+                cum_train_loss += loss_value
                 progress_bar.set_description(
                     "Loss: "
                     + str(float(loss_value))
                     + " Test Loss "
                     + str(float(test_loss))
+                    + " Avg Train Loss "
+                    + str(float(avg_train_loss))
                 )
                 progress_bar.update(batch_size)
                 total_iterations += batch_size
-    print("Lowest test loss:", lowest_test_loss)
+                num_batches += 1
+
+            avg_train_loss = cum_train_loss / num_batches
+            if avg_train_loss < lowest_train_loss:
+                lowest_train_loss = float(avg_train_loss)
+                file_names = [
+                    file.split("/")[-1] for file in glob.glob("outputs/*.png")
+                ]
+                cnn.eval()
+                apply_cnn(cnn, test_x, "ensembler_outputs", file_names)
+                cnn.train()
+
+    print("Lowest avg train loss:", lowest_train_loss)
 
 
 def apply_cnn(
@@ -160,20 +172,21 @@ def apply_cnn(
         image = test_x[idx : idx + 1].to(DEVICE)
         image = cnn(image).detach().cpu()
         # image = (image.numpy() > 0).astype(int)
-        image = torch.sigmoid(image)
+        image = torch.sigmoid(image).numpy()
         cv2.imwrite(output_folder + "/" + file_names[idx], image[0][0] * 255)
 
 
 def main(args: Namespace) -> None:
     """Main method."""
+    num_inputs = len(os.listdir("ensembler/new-outputs/test"))
     train_x, train_y = load_data(
         args.output_dir, args.image_dir, "train", INPUT_IMAGE
     )
     test_x, _ = load_data(args.output_dir, args.image_dir, "test", INPUT_IMAGE)
     print("Train set:", train_x.shape)
     print("Test set:", test_x.shape)
-    cnn = EnsemblerCNN(INPUT_IMAGE)
-    train_cnn(cnn, train_x, train_y, test_x, 200000, 4, 0.00002)
+    cnn = EnsemblerCNN(INPUT_IMAGE, num_inputs)
+    train_cnn(cnn, train_x, train_y, test_x, 400000, 4, 0.00001)
 
 
 if __name__ == "__main__":
