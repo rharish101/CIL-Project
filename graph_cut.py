@@ -29,17 +29,14 @@ def apply_graph_cut(
     Returns:
         The graph cut applied mask as a numpy array
     """
-    # Assigning grabcut mask values
+    # Initialize a unary mask
     mask = np.zeros(prob_mask.shape[:2], np.uint8)
 
+    # Masking strategy: Assigning grabcut mask values
     cut_mask = prob_mask > config.prob_fg_thresh
     if (~cut_mask).all():
         return mask
     mask[np.any(cut_mask, axis=2)] = cv2.GC_PR_FGD
-    # mask[prob_mask <= config.prob_fg_thresh] = cv2.GC_PR_BGD
-    # mask[prob_mask == 255] = cv2.GC_FGD
-    # mask[cut_mask > 0] = cv2.GC_PR_FGD
-    # mask[cut_mask == 0] = cv2.GC_BGD
 
     # allocate memory for two arrays that the GrabCut algorithm internally
     # uses when segmenting the foreground from the background
