@@ -67,7 +67,7 @@ class Trainer:
             config, X_train, y_train, random_augmentation=True
         )
         val_dataset = TrainDataset(
-            config, X_train, y_train, random_augmentation=False
+            config, X_test, y_test, random_augmentation=False
         )
 
         self.train_loader = DataLoader(
