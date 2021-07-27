@@ -38,6 +38,10 @@ class Config:
             architecture
         lbl_fg_thresh: The threshold for the image in [0, 1] to be labelled as
             foreground
+        pgd_radius: The L-infinity ball radius for the projected gradient
+            descent attack
+        pgd_steps: The maximum steps to take for the project gradient descent
+            attack
     """
 
     learn_rate: float = 5e-5
@@ -60,6 +64,8 @@ class Config:
     init_channels: int = 64
     max_channels: int = 1024
     lbl_fg_thresh: float = 0.5
+    pgd_radius: float = 0.05
+    pgd_steps: int = 10
 
 
 def load_config(config_path: Optional[Path]) -> Config:

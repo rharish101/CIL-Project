@@ -145,12 +145,23 @@ class Trainer:
         for step, (image, ground_truth) in enumerate(
             tqdm(iterator, total=max_steps, desc="Training"), 1
         ):
+            image = image.to(self.device)
+            image.requires_grad = True  # for PGD
+            ground_truth = ground_truth.to(self.device)
+
+            # Keep the model constant here
+            self.model.eval()
+            for _ in range(self.config.pgd_steps):
+                with autocast(enabled=self.config.mixed_precision):
+                    prediction = self.model(image)
+                    loss = self.loss(prediction, ground_truth)
+                    grad = torch.autograd.grad(loss, image)[0]
+                    image = image + self.config.pgd_radius * grad.sign()
+                    image = image.clamp(0, 1)
+
             # Turn on batch-norm updates
             self.model.train()
             self.optim.zero_grad()
-
-            image = image.to(self.device)
-            ground_truth = ground_truth.to(self.device)
 
             with autocast(enabled=self.config.mixed_precision):
                 prediction = self.model(image)
