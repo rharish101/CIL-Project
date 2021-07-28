@@ -16,23 +16,32 @@ GUI_UPDATE_STEPS = 40
 VISUALIZE = True
 
 
-def get_classification_paths(classification_dir):
+def get_classification_paths(classification_dir, sort=True):
     """Get all classification paths."""
     file_names = [path.name for path in Path(classification_dir).glob("*")]
     if "submission.csv" in file_names:
         file_names.remove("submission.csv")
-    file_names.sort()
+    if sort:
+        file_names.sort()
     return [
         str(Path(classification_dir) / file_name) for file_name in file_names
     ]
 
 
 def classify_image(
-    image_name, x, y, start_positions, slime, root=None, visualize=False
+    image_name,
+    x,
+    y,
+    start_positions,
+    slime,
+    root=None,
+    visualize=False,
+    stupid=False,
+    args=None,
 ):
     """Classify image."""
     stack = [start_positions]
-    already_visited = zeros_like(y, dtype=float)
+    already_visited = zeros_like(x[0], dtype=float)
 
     gui_step_counter = 0
     if visualize:
@@ -56,19 +65,24 @@ def classify_image(
         for pos in next_posses:
             pos_x = pos[0]
             pos_y = pos[1]
-            classified = slime.classify(pos_x, pos_y, x, already_visited, y)
+            if stupid:
+                classified = x[0][0][pos_x][pos_y] > args.threshold
+            else:
+                classified = slime.classify(
+                    pos_x, pos_y, x, already_visited, y
+                )
             if classified:
                 already_visited[0][pos_x][pos_y] = 1
                 next_posses_list = []
                 if (
-                    pos_x < len(y[0][0]) - 1
+                    pos_x < len(x[0][0]) - 1
                     and already_visited[0][pos_x + 1][pos_y] == 0
                 ):
                     next_posses_list.append((pos_x + 1, pos_y))
                 if 0 < pos_x and already_visited[0][pos_x - 1][pos_y] == 0:
                     next_posses_list.append((pos_x - 1, pos_y))
                 if (
-                    pos_y < len(y[0][0]) - 1
+                    pos_y < len(x[0][0]) - 1
                     and already_visited[0][pos_x][pos_y + 1] == 0
                 ):
                     next_posses_list.append((pos_x, pos_y + 1))
@@ -178,6 +192,18 @@ if __name__ == "__main__":
         help="File with the weights of the slime vision.",
     )
     parser.add_argument(
+        "--input_dir",
+        type=str,
+        default=None,
+        help="Dir with the stuff that should be inferred on.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=None,
+        help="Dir wthere the outputs should be put.",
+    )
+    parser.add_argument(
         "-m",
         "--mode",
         choices=["train", "inference"],
@@ -190,5 +216,12 @@ if __name__ == "__main__":
         nargs="?",
         const=True,
         help="Train or only infer",
+    )
+    parser.add_argument(
+        "-s",
+        "--stupid",
+        nargs="?",
+        const=True,
+        help="Only directly take classification output.",
     )
     main(parser.parse_args())
