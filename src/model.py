@@ -18,6 +18,7 @@ from torch.nn.functional import interpolate
 from typing_extensions import Final
 
 from .config import Config
+from .conv_crf import GaussCRF, get_default_conf, get_test_conf
 
 
 class ConvBlock(Module):
@@ -230,6 +231,7 @@ class UNet(Module):
             ),
         ]
         self.up_blocks = ModuleList(up_blocks)
+        self.crf = GaussCRF(get_default_conf(), [400, 400], 2, False)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Segment the inputs."""
@@ -248,4 +250,12 @@ class UNet(Module):
             for i, block in enumerate(self.up_blocks, 1):
                 output = block([output, down_outputs[-i]])
 
+            self.crf.shape = inputs.shape[2:]
+            self.crf.mesh = self.crf._create_mesh().to(inputs.device)
+            self.crf.CRF.npixels = inputs.shape[2:]
+
+            predictions = torch.sigmoid(output)
+            new_output = torch.cat([1 - predictions, predictions], 1)
+            output = self.crf(new_output, inputs * 255)
+            output = output[:, 1:] - output[:, :1]
             return output

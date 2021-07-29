@@ -16,8 +16,6 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing_extensions import Final
 
-from crf import crf
-
 from .config import Config
 from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_file_paths
 from .model import UNet
@@ -156,7 +154,6 @@ class Trainer:
 
             with autocast(enabled=self.config.mixed_precision):
                 prediction = self.model(image)
-                prediction = self.post_processing(prediction)
                 loss = self.loss(prediction, ground_truth)
 
             self.scaler.scale(loss).backward()
@@ -181,14 +178,6 @@ class Trainer:
                     )
 
         self.save_weights(timestamped_save_dir)
-
-    def post_processing(self, prediction: torch.Tensor) -> torch.Tensor:
-        """Post processing on the prediction.
-
-        Args:
-            prediction: The initial prediction
-        """
-        return crf(prediction, self.model)
 
     def save_weights(self, save_dir: Path, is_best: bool = False) -> None:
         """Save the model's weights.
@@ -251,19 +240,13 @@ class Trainer:
         # Log and save to a timestamped directory, since we don't want to
         # accidently overwrite older logs and models
         curr_date = datetime.now().astimezone()
+        # isoformat uses : which can't be used in paths in Windows
+        timestamp = curr_date.isoformat().replace(":", ".")
 
-        timestamped_log_dir = log_dir / curr_date.isoformat()
-        try:
-            timestamped_log_dir.mkdir(parents=True)
-        except Exception:
-            # had to add this case because the original isoformat
-            # can't be used as dir_name in Windows
-            timestamped_log_dir = log_dir / curr_date.isoformat().replace(
-                ":", "."
-            )
-            timestamped_log_dir.mkdir(parents=True)
+        timestamped_log_dir = log_dir / timestamp
+        timestamped_log_dir.mkdir(parents=True)
 
-        timestamped_save_dir = save_dir / curr_date.isoformat()
+        timestamped_save_dir = save_dir / timestamp
         timestamped_save_dir.mkdir(parents=True)
 
         # Save hyper-params as a TOML file for reference
@@ -302,7 +285,6 @@ class Trainer:
 
                 with autocast(enabled=self.config.mixed_precision):
                     val_pred = self.model(val_img)
-                    val_pred = self.post_processing(val_pred)
                     metrics.loss += self.loss(val_pred, val_gt)
 
                 metrics.accuracy += self._get_acc(val_pred, val_gt)
