@@ -3,34 +3,33 @@ The MIT License (MIT)
 Copyright (c) 2017 Marvin Teichmann
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import logging
 import os
 import sys
 
 import numpy as np
 import scipy as scp
 
-import logging
-
-logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                    level=logging.INFO,
-                    stream=sys.stdout)
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 
 
 class SegmentationVisualizer(object):
     """docstring for label_converter"""
-    def __init__(self, color_list=None, name_list=None,
-                 mode='RGB'):
+
+    def __init__(self, color_list=None, name_list=None, mode="RGB"):
         super(SegmentationVisualizer, self).__init__()
         self.color_list = color_list
         self.name_list = name_list
 
         self.mask_color = [0, 0, 0]
 
-        if mode == 'RGB':
+        if mode == "RGB":
             self.chan = 3
 
     def id2color(self, id_image, mask=None, ignore_idx=-100):
@@ -75,7 +74,7 @@ class SegmentationVisualizer(object):
         return color_image
 
     def color2id(self, color_gt):
-        assert(False)
+        assert False
         shape = color_gt.shape
         gt_reshaped = np.zeros([shape[0], shape[1]], dtype=np.int32)
         mask = np.zeros([shape[0], shape[1]], dtype=np.int32)
@@ -85,9 +84,9 @@ class SegmentationVisualizer(object):
             mask = mask + gt_label
             gt_reshaped = gt_reshaped + 10 * train_id * gt_label
 
-        assert(np.max(mask) == 1)
+        assert np.max(mask) == 1
         np.unique(gt_reshaped)
-        assert(np.max(gt_reshaped) <= 200)
+        assert np.max(gt_reshaped) <= 200
 
         gt_reshaped = gt_reshaped + 255 * (1 - mask)
         return gt_reshaped

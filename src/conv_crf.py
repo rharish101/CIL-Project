@@ -87,12 +87,7 @@ test_config = {
         "sdims": 1.5,
         "compat": 3,
     },
-    "col_feats": {
-        "sdims": 2,
-        "schan": 2,
-        "compat": 3,
-        "use_bias": True
-    },
+    "col_feats": {"sdims": 2, "schan": 2, "compat": 3, "use_bias": True},
     "trainable_bias": False,
 }
 
