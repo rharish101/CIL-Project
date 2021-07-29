@@ -281,8 +281,15 @@ class UNet(Module):
         self.up_blocks = ModuleList(up_blocks_rev[::-1])
 
         self.latent_mlp = Sequential(
-            SNNBlock(1024, 512, dropout=config.dropout),
-            SNNBlock(512, 256, dropout=config.dropout, activation=False),
+            SNNBlock(
+                curr_channels, curr_channels // 2, dropout=config.dropout
+            ),
+            SNNBlock(
+                curr_channels // 2,
+                curr_channels // 4,
+                dropout=config.dropout,
+                activation=False,
+            ),
         )
 
     def forward(
