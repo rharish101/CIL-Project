@@ -1,10 +1,13 @@
 """Model definitions."""
-from typing import Tuple
+import math
+from typing import Optional, Tuple
 
 import torch
 from torch.cuda.amp import autocast
 from torch.nn import (
+    SELU,
     AdaptiveAvgPool2d,
+    AlphaDropout,
     BatchNorm2d,
     Conv2d,
     Dropout2d,
@@ -13,9 +16,10 @@ from torch.nn import (
     MaxPool2d,
     Module,
     ModuleList,
+    Parameter,
     Sequential,
 )
-from torch.nn.functional import interpolate
+from torch.nn.functional import conv2d, interpolate
 from typing_extensions import Final
 
 from .config import Config
@@ -173,6 +177,47 @@ class ResBlock(Module):
         return self.block(inputs) + self.skip(inputs)
 
 
+class SNNBlock(Module):
+    """Block for a self-normalizing fully-connected layer.
+
+    This block consists of:
+        * AlphaDropout
+        * Linear
+        * SELU
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        dropout: float = 0.0,
+        activation: bool = True,
+    ):
+        """Initialize the layers.
+
+        Args:
+            in_features: The no. of input features
+            out_features: The no. of output features
+            dropout: The probability of dropping out the inputs
+            activation: Whether to add the activation function
+        """
+        super().__init__()
+        self.dropout = AlphaDropout(dropout)
+        self.activation = SELU() if activation else Identity()
+
+        stddev = math.sqrt(1 / in_features)
+        weight = torch.randn(out_features, in_features, 1, 1) * stddev
+        bias = torch.zeros(out_features)
+        self.weight = Parameter(weight)
+        self.bias = Parameter(bias)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Get the block's outputs."""
+        outputs = self.dropout(inputs)
+        outputs = conv2d(outputs, self.weight, self.bias)
+        return self.activation(outputs)
+
+
 class UNet(Module):
     """Class for the UNet architecture.
 
@@ -235,7 +280,21 @@ class UNet(Module):
         self.bottleneck = down_blocks[-1]
         self.up_blocks = ModuleList(up_blocks_rev[::-1])
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        self.latent_mlp = Sequential(
+            SNNBlock(
+                curr_channels, curr_channels // 2, dropout=config.dropout
+            ),
+            SNNBlock(
+                curr_channels // 2,
+                curr_channels // 4,
+                dropout=config.dropout,
+                activation=False,
+            ),
+        )
+
+    def forward(
+        self, inputs: torch.Tensor, only_latent: bool = False
+    ) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
         """Segment the inputs."""
         # autocast is needed here since we're using DataParallel
         with autocast(enabled=self.config.mixed_precision):
@@ -247,9 +306,12 @@ class UNet(Module):
                 down_outputs.append(block(down_outputs[-1]))
 
             output = self.bottleneck(down_outputs[-1])
+            latent = self.latent_mlp(output)
+            if only_latent:
+                return None, latent
 
             # Going up the U
             for i, block in enumerate(self.up_blocks, 1):
                 output = block([output, down_outputs[-i]])
 
-            return output
+        return output, latent

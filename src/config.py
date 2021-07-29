@@ -28,6 +28,8 @@ class Config:
             rotation of training inputs
         loss: Which loss to train with. Possible values
             ["logit_bce", "soft_dice"] (8.4.21)
+        shape_loss_weight: The weight for the shape loss term
+        temperature: The temperature for the contrastive shape loss
         prob_fg_thresh: The probable foreground threshold for GrabCut
         unet_depth: The total depth of the UNet architecture in the U
         avgpool: Whether to use a global average pooling path as the UNet
@@ -38,6 +40,14 @@ class Config:
             architecture
         lbl_fg_thresh: The threshold for the image in [0, 1] to be labelled as
             foreground
+        downscale_min: The lower bound for the downscaling in the texture
+            transformation
+        downscale_max: The upper bound for the downscaling in the texture
+            transformation
+        compress_quality_lower: The lower bound for the JPEG compression in the
+            texture transformation
+        compress_quality_upper: The upper bound for the JPEG compression in the
+            texture transformation
     """
 
     learn_rate: float = 5e-5
@@ -54,12 +64,18 @@ class Config:
     crop_size: int = 256
     threshold: Optional[float] = None
     loss: str = "logit_bce"
+    shape_loss_weight: float = 1e-2
+    temperature: float = 1.0
     prob_fg_thresh: int = 32
-    unet_depth: int = 7
-    avgpool: bool = True
+    unet_depth: int = 6
+    avgpool: bool = False
     init_channels: int = 64
     max_channels: int = 1024
     lbl_fg_thresh: float = 0.5
+    downscale_min: float = 0.5
+    downscale_max: float = 0.75
+    compress_quality_lower: float = 20
+    compress_quality_upper: float = 50
 
 
 def load_config(config_path: Optional[Path]) -> Config:

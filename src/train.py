@@ -5,10 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
+import numpy as np
 import toml
 import torch
 from torch.cuda.amp import GradScaler, autocast
-from torch.nn import BCEWithLogitsLoss, DataParallel, Module
+from torch.nn import BCEWithLogitsLoss, DataParallel, LogSoftmax, Module
+from torch.nn.functional import cosine_similarity
 from torch.optim import Adam
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
@@ -17,7 +19,13 @@ from tqdm import tqdm
 from typing_extensions import Final
 
 from .config import Config
-from .data import INPUT_CHANNELS, OUTPUT_CHANNELS, TrainDataset, get_file_paths
+from .data import (
+    INPUT_CHANNELS,
+    OUTPUT_CHANNELS,
+    TrainDataset,
+    get_file_paths,
+    get_texture_transform,
+)
 from .model import UNet
 from .soft_dice_loss import soft_dice_loss
 
@@ -27,14 +35,78 @@ class _Metrics:
     """Uniform structure to hold losses and metrics.
 
     Attributes:
-        loss: The classification loss
+        class_loss: The classification loss
+        shape_loss: The shape constraint loss
+        total_loss: The total weighted loss
         accuracy: The accuracy
         f1_score: The F1 score
     """
 
-    loss: torch.Tensor = 0.0
+    class_loss: torch.Tensor = 0.0
+    shape_loss: torch.Tensor = 0.0
+    total_loss: torch.Tensor = 0.0
     accuracy: torch.Tensor = 0.0
     f1_score: torch.Tensor = 0.0
+
+
+class ContrastiveLoss(Module):
+    """A contrastive loss adapted from SimCLR.
+
+    Link to SimCLR: https://arxiv.org/abs/2002.05709v3.
+    """
+
+    def __init__(self, temperature: float = 1.0):
+        """Save hyper-params."""
+        super().__init__()
+        self.temperature = temperature
+        self._log_softmax_fn = LogSoftmax(dim=-1)
+
+    def forward(
+        self, inputs: torch.Tensor, targets: torch.Tensor
+    ) -> torch.Tensor:
+        """Get the loss."""
+        # BxCxHxW => HxWxBxC == ...xNxD
+        inputs = inputs.permute(2, 3, 0, 1)
+        targets = targets.permute(2, 3, 0, 1)
+
+        batch_size = inputs.shape[-2]
+        left = torch.cat([inputs, targets], -2).unsqueeze(-1)  # ...x2NxDx1
+        right = left.permute(0, 1, 4, 3, 2)  # ...x1xDx2N
+
+        # Get all-pairs cosine similarity, like ...x2NxD @ ...xDx2N
+        similarity = cosine_similarity(
+            left, right, dim=-2, eps=torch.finfo(left.dtype).eps
+        )  # Now ...x2Nx2N
+
+        # Mask out the self values
+        mask = torch.eye(2 * batch_size, device=similarity.device).bool()
+        mask_nd = (
+            mask.unsqueeze(0).unsqueeze(0).tile(*similarity.shape[:2], 1, 1)
+        )
+        neg_inf = float("-inf") * torch.ones_like(similarity)
+        similarity = torch.where(mask_nd, neg_inf, similarity)
+
+        log_softmax = self._log_softmax_fn(similarity / self.temperature)
+
+        # All positive pairs are (i, N+i mod 2N)
+        # - - - x - -
+        # - - - - x -
+        # - - - - - x
+        # x - - - - -
+        # - x - - - -
+        # - - x - - -
+        positive_pairs = torch.cat(
+            [
+                torch.diagonal(
+                    log_softmax, offset=batch_size, dim1=-2, dim2=-1
+                ),  # ...xN
+                torch.diagonal(
+                    log_softmax, offset=-batch_size, dim1=-2, dim2=-1
+                ),  # ...xN
+            ],
+            -1,
+        )  # ...x2N
+        return -(positive_pairs).mean()
 
 
 class Trainer:
@@ -91,9 +163,12 @@ class Trainer:
                 self._get_loss_weight() if config.balanced_loss else None
             )
             # Using logits directly is numerically more stable and efficient
-            self.loss = BCEWithLogitsLoss(pos_weight=loss_weight)
+            self.class_loss_fn = BCEWithLogitsLoss(pos_weight=loss_weight)
         elif config.loss == "soft_dice":
-            self.loss = soft_dice_loss
+            self.class_loss_fn = soft_dice_loss
+
+        self.texture_transform = get_texture_transform(config)
+        self.shape_loss_fn = ContrastiveLoss(config.temperature)
 
         self.optim = Adam(
             self.model.parameters(),
@@ -153,8 +228,21 @@ class Trainer:
             ground_truth = ground_truth.to(self.device)
 
             with autocast(enabled=self.config.mixed_precision):
-                prediction = self.model(image)
-                loss = self.loss(prediction, ground_truth)
+                prediction, latent = self.model(image)
+                class_loss = self.class_loss_fn(prediction, ground_truth)
+
+                if self.config.shape_loss_weight > 0:
+                    image_np = np.moveaxis(image.cpu().numpy(), 1, 3)
+                    other_image_np = self.texture_transform(image_np)
+                    other_image = torch.from_numpy(other_image_np).to(
+                        self.device
+                    )
+                    other_latent = self.model(other_image, only_latent=True)[1]
+                    shape_loss = self.shape_loss_fn(latent, other_latent)
+                else:
+                    shape_loss = 0.0
+
+                loss = class_loss + self.config.shape_loss_weight * shape_loss
 
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optim)
@@ -168,7 +256,13 @@ class Trainer:
                 with torch.no_grad():
                     acc = self._get_acc(prediction, ground_truth)
                     f1 = self._get_f1(prediction, ground_truth)
-                    metrics = _Metrics(loss=loss, accuracy=acc, f1_score=f1)
+                    metrics = _Metrics(
+                        class_loss=class_loss,
+                        shape_loss=shape_loss,
+                        total_loss=loss,
+                        accuracy=acc,
+                        f1_score=f1,
+                    )
                     self._log_metrics(
                         train_writer,
                         val_writer,
@@ -296,13 +390,13 @@ class Trainer:
                 val_gt = val_gt.to(self.device)
 
                 with autocast(enabled=self.config.mixed_precision):
-                    val_pred = self.model(val_img)
-                    metrics.loss += self.loss(val_pred, val_gt)
+                    val_pred = self.model(val_img)[0]
+                    metrics.class_loss += self.class_loss_fn(val_pred, val_gt)
 
                 metrics.accuracy += self._get_acc(val_pred, val_gt)
                 metrics.f1_score += self._get_f1(val_pred, val_gt)
 
-            metrics.loss /= len(self.val_loader)
+            metrics.class_loss /= len(self.val_loader)
             metrics.accuracy /= len(self.val_loader)
             metrics.f1_score /= len(self.val_loader)
 
@@ -353,8 +447,10 @@ class Trainer:
                 self.save_weights(timestamped_save_dir, True)
 
         for key in vars(train_metrics):
-            if key == "loss":
+            if key == "class_loss":
                 tag = "losses/classification"
+            elif key in {"shape_loss", "total_loss"}:
+                continue
             else:
                 tag = f"metrics/{key}"
 
@@ -362,8 +458,13 @@ class Trainer:
             if len(self.val_loader) > 0:
                 val_writer.add_scalar(tag, getattr(val_metrics, key), step)
 
+        reg_loss = self._get_l2_reg()
+        train_writer.add_scalar("losses/regularization", reg_loss, step)
+        train_writer.add_scalar("losses/shape", train_metrics.shape_loss, step)
         train_writer.add_scalar(
-            "losses/regularization", self._get_l2_reg(), step
+            "losses/total",
+            train_metrics.total_loss + self.config.weight_decay * reg_loss,
+            step,
         )
 
         # Log a histogram for each tensor parameter in the model, to

@@ -67,7 +67,7 @@ class Inference:
                 images = images.to(self.device)
 
                 with autocast(enabled=self.config.mixed_precision):
-                    logits = self.model(images)
+                    logits = self.model(images)[0]
 
                 predictions = torch.sigmoid(logits)
                 # Convert float32 in [0, 1] to uint8 in [0, 255]
