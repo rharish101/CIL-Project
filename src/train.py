@@ -346,10 +346,11 @@ class Trainer:
         step: int,
     ) -> None:
         """Log metrics for both training and validation."""
-        val_metrics, val_img, val_gt, val_pred = self._get_val_metrics()
-        if val_metrics.accuracy > self.best_acc:
-            self.best_acc = val_metrics.accuracy
-            self.save_weights(timestamped_save_dir, True)
+        if len(self.val_loader) > 0:
+            val_metrics, val_img, val_gt, val_pred = self._get_val_metrics()
+            if val_metrics.accuracy > self.best_acc:
+                self.best_acc = val_metrics.accuracy
+                self.save_weights(timestamped_save_dir, True)
 
         for key in vars(train_metrics):
             if key == "loss":
@@ -358,7 +359,8 @@ class Trainer:
                 tag = f"metrics/{key}"
 
             train_writer.add_scalar(tag, getattr(train_metrics, key), step)
-            val_writer.add_scalar(tag, getattr(val_metrics, key), step)
+            if len(self.val_loader) > 0:
+                val_writer.add_scalar(tag, getattr(val_metrics, key), step)
 
         train_writer.add_scalar(
             "losses/regularization", self._get_l2_reg(), step
@@ -370,9 +372,10 @@ class Trainer:
             train_writer.add_histogram(name, value, step)
 
         # Log the validation images for easy visualization
-        val_writer.add_images("input", val_img, step)
-        val_writer.add_images("ground_truth", val_gt, step)
-        val_writer.add_images("prediction", val_pred, step)
+        if len(self.val_loader) > 0:
+            val_writer.add_images("input", val_img, step)
+            val_writer.add_images("ground_truth", val_gt, step)
+            val_writer.add_images("prediction", val_pred, step)
 
     def _get_loss_weight(self) -> torch.Tensor:
         """Get the scalar weight for the positive class in the loss.
