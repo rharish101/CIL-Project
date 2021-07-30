@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Script that runs slime post-proc by only copying the predicted value."""
 
 import os
@@ -81,13 +82,13 @@ if __name__ == "__main__":
     formatter_class = ArgumentDefaultsHelpFormatter
     parser = ArgumentParser(description, formatter_class)  # type: ignore
     parser.add_argument(
-        "--input_dir",
+        "--input-dir",
         type=str,
         default=None,
         help="Dir with the stuff that should be inferred on.",
     )
     parser.add_argument(
-        "--output_dir",
+        "--output-dir",
         type=str,
         default=None,
         help="Dir wthere the outputs should be put.",
