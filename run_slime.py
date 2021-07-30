@@ -66,13 +66,13 @@ def classify_image(
             pos_x = pos[0]
             pos_y = pos[1]
             if stupid:
-                classified = x[0][0][pos_x][pos_y] > args.threshold
+                classified = x[0][0][pos_x][pos_y]
             else:
                 classified = slime.classify(
                     pos_x, pos_y, x, already_visited, y
                 )
-            if classified:
-                already_visited[0][pos_x][pos_y] = 1
+            if classified > args.threshold:
+                already_visited[0][pos_x][pos_y] = classified
                 next_posses_list = []
                 if (
                     pos_x < len(x[0][0]) - 1
