@@ -126,6 +126,56 @@ class TestDataset(Dataset):
         return Lambda(lambda x: x.float() / 255)
 
 
+class EvalDataset(Dataset):
+    """Dataset for the ground truth and predictions."""
+
+    def __init__(
+        self,
+        config: Config,
+        ground_truth_path_list: List[str],
+        pred_dir: Path,
+    ):
+        """Load the list of ground truth and predictions in the dataset.
+
+        Args:
+            config: config file
+            ground_truth_path_list: List of paths of ground truth images
+            pred_dir: Directory containing the model's predictions for the
+                input data
+        """
+        self.ground_truth_path_list = ground_truth_path_list
+        self.pred_dir = pred_dir
+        self.transform = self.get_transform()
+
+    def __len__(self) -> int:
+        """Return the no. of images in the dataset."""
+        return len(self.ground_truth_path_list)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Get the image and its ground truth at the given index."""
+        return self.transform(self.load_images(idx))
+
+    @staticmethod
+    def get_transform() -> TransformType:
+        """Get the transformation for the data.
+
+        This transform works on both the input and output simultaneously.
+        """
+        # Scale from uint8 [0, 255] to float32 [0, 1]
+        return Lambda(lambda tup: tuple(i.float() / 255 for i in tup))
+
+    @lru_cache(maxsize=None)
+    def load_images(self, idx):
+        """Load training and ground truth images from storage."""
+        ground_truth_path = self.ground_truth_path_list[idx]
+        ground_truth = read_image(ground_truth_path)
+
+        file_name = Path(ground_truth_path).name
+        prediction = read_image(str(self.pred_dir / file_name))
+
+        return ground_truth, prediction
+
+
 def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
     """Get the transformations for data augmentation.
 
