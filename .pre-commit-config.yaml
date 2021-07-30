@@ -24,3 +24,4 @@ repos:
         additional_dependencies:
           - toml
           - types-toml
+exclude: 'src/conv_crf.py'
