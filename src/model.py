@@ -18,7 +18,7 @@ from torch.nn.functional import interpolate
 from typing_extensions import Final
 
 from .config import Config
-from .conv_crf import GaussCRF, get_default_conf, get_test_conf
+from .conv_crf import GaussCRF, get_default_conf
 
 
 class ConvBlock(Module):
