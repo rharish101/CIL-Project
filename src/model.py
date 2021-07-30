@@ -280,21 +280,22 @@ class UNet(Module):
         self.bottleneck = down_blocks[-1]
         self.up_blocks = ModuleList(up_blocks_rev[::-1])
 
-        self.latent_mlp = Sequential(
-            SNNBlock(
-                curr_channels, curr_channels // 2, dropout=config.dropout
-            ),
-            SNNBlock(
-                curr_channels // 2,
-                curr_channels // 4,
-                dropout=config.dropout,
-                activation=False,
-            ),
-        )
+        if config.shape_loss_weight > 0:
+            self.latent_mlp = Sequential(
+                SNNBlock(
+                    curr_channels, curr_channels // 2, dropout=config.dropout
+                ),
+                SNNBlock(
+                    curr_channels // 2,
+                    curr_channels // 4,
+                    dropout=config.dropout,
+                    activation=False,
+                ),
+            )
 
     def forward(
         self, inputs: torch.Tensor, only_latent: bool = False
-    ) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         """Segment the inputs."""
         # autocast is needed here since we're using DataParallel
         with autocast(enabled=self.config.mixed_precision):
@@ -306,7 +307,10 @@ class UNet(Module):
                 down_outputs.append(block(down_outputs[-1]))
 
             output = self.bottleneck(down_outputs[-1])
-            latent = self.latent_mlp(output)
+            if self.config.shape_loss_weight > 0.0:
+                latent = self.latent_mlp(output)
+            else:
+                latent = None
             if only_latent:
                 return None, latent
 
