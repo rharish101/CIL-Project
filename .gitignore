@@ -6,7 +6,6 @@ __pycache__/
 saved_models/
 logs/
 outputs/
-past_outputs/
 cil-road-segmentation-2021/
 
 # Dump custom configs here

@@ -347,13 +347,7 @@ class Trainer:
             timestamped_log_dir.mkdir(parents=True)
 
         timestamped_save_dir = save_dir / curr_date.isoformat()
-        try:
-            timestamped_save_dir.mkdir(parents=True)
-        except Exception:
-            timestamped_save_dir = save_dir / curr_date.isoformat().replace(
-                ":", "."
-            )
-            timestamped_save_dir.mkdir(parents=True)
+        timestamped_save_dir.mkdir(parents=True)
 
         # Save hyper-params as a TOML file for reference
         config = {**vars(self.config), "date": curr_date}
