@@ -45,6 +45,8 @@ To view the list of all positional and optional arguments for a script `script.p
     ```sh
     pre-commit install
     ```
+    
+5. If you intend to run the visualization script, install tkinter
 
 **NOTE:** You need to be inside the virtual environment where you installed the above dependencies every time you commit.
 However, this is not required if you have installed pre-commit globally.
