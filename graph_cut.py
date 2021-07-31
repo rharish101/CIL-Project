@@ -114,7 +114,11 @@ if __name__ == "__main__":
         "--mask-dir",
         default="outputs",
         type=Path,
-        help="path to input mask files directory",
+        help=(
+            "Path to input mask files directory. In the ensembler mode, "
+            "it is assumed that the mask directory includes directories of"
+            " individual masks."
+        ),
     )
     ap.add_argument(
         "-i",
@@ -133,7 +137,6 @@ if __name__ == "__main__":
     ap.add_argument(
         "-e",
         "--ensemble",
-        default=False,
         action="store_true",
         help="Set whether running graph-cut as the ensembling script",
     )
