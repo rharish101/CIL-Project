@@ -138,7 +138,7 @@ The number of iteration of Grabcut algorithm also can be specified by the `--ite
 There is also a Jupyter notebook for visualizing the results of applying the GrabCut algorithm on a given test image as well as its corresponding mask.
 It is in `notebooks/visualize_graph_cut.ipynb` and can be used for tuning hyper-parameters.
 
-#### Submissions
+### Submissions
 To create a submission from the inference outputs on the test data, run the script `submission.py`:
 ```sh
 ./submission.py
