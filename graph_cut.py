@@ -59,6 +59,7 @@ def apply_graph_cut(
 def main(args: argparse.Namespace) -> None:
     """Run the main program."""
     config = load_config(args.config)
+    random.seed(config.seed)
 
     output_dir = args.output_dir.expanduser()
     if not output_dir.exists():
@@ -77,8 +78,8 @@ def main(args: argparse.Namespace) -> None:
             masks.append(cv2.imread(path, cv2.IMREAD_GRAYSCALE))
 
         # Because of the OpenCV implementation, only ensembling of up to
-        # 3 mask sets is supported.
-        # Thus, we do the sampling to ensure this constraint
+        # 3 mask sets is supported. Thus, we do sampling to ensure this
+        # constraint.
         if len(masks) < 3:
             masks = random.choices(masks, k=3)
         else:
