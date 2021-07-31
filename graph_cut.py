@@ -34,15 +34,17 @@ def apply_graph_cut(
 
     # Assigning grabcut mask values
     cut_mask = mask > config.prob_fg_thresh
-    mask[cut_mask > 0] = cv2.GC_PR_FGD
-    mask[cut_mask == 0] = cv2.GC_BGD
+    if (~cut_mask).all():
+        return cut_mask
+    mask[cut_mask] = cv2.GC_PR_FGD
+    mask[~cut_mask] = cv2.GC_BGD
 
     # allocate memory for two arrays that the GrabCut algorithm internally
     # uses when segmenting the foreground from the background
     fgModel = np.zeros((1, 65), dtype="float")
     bgModel = np.zeros((1, 65), dtype="float")
     # apply GrabCut using the the mask segmentation method
-    (mask, bgModel, fgModel) = cv2.grabCut(
+    mask, bgModel, fgModel = cv2.grabCut(
         mask_image,
         mask,
         None,
