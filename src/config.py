@@ -40,6 +40,8 @@ class Config:
             architecture
         lbl_fg_thresh: The threshold for the image in [0, 1] to be labelled as
             foreground
+        extra_augmentations: Whether to use extra augmentations (other than the
+            base U-Net ones) for training
         downscale_min: The lower bound for the downscaling in the texture
             transformation
         downscale_max: The upper bound for the downscaling in the texture
@@ -72,6 +74,7 @@ class Config:
     init_channels: int = 64
     max_channels: int = 1024
     lbl_fg_thresh: float = 0.5
+    extra_augmentations: bool = True
     downscale_min: float = 0.5
     downscale_max: float = 0.75
     compress_quality_lower: float = 20
