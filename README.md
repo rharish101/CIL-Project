@@ -127,14 +127,16 @@ The path to input masks and output directory are given by `--input-dir` and `--o
 
 The metrics are printed to `stdout`.
 
-#### Graph-cut Post-processing
-To run Graph-cut algorithm on output masks and create enhanced masks, run the `post_processing/graph_cut.py` script:
+#### Graph-Cut
+To run Graph-Cut algorithm on output masks and create enhanced masks, run the `graph_cut.py` script:
 ```sh
-./post_processing/graph_cut.py
+./graph_cut.py
 ```
-The path to input masks and output directory are given by `--mask-dir` and `--output-dir` arguments to the script, respectively. The number of iteration of Grabcut algorithm also can be specified by the `--iter` argument. 
+The path to input masks and output directory are given by `--mask-dir` and `--output-dir` arguments to the script, respectively.
+The number of iteration of Grabcut algorithm also can be specified by the `--iter` argument. 
 
-There is also a Jupyter notebook for visualizing the results of applying the Grabcut algorithm on a given test image as well as its corresponding mask. It is in `post_processing/visualize_graph_cut.ipynb` and can be used for tuning hyperparameters.
+There is also a Jupyter notebook for visualizing the results of applying the GrabCut algorithm on a given test image as well as its corresponding mask.
+It is in `notebooks/visualize_graph_cut.ipynb` and can be used for tuning hyper-parameters.
 
 #### Submissions
 To create a submission from the inference outputs on the test data, run the script `submission.py`:
