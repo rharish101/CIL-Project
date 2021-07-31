@@ -135,6 +135,9 @@ To run Graph-Cut algorithm on output masks and create enhanced masks, run the `g
 The path to input masks and output directory are given by `--mask-dir` and `--output-dir` arguments to the script, respectively.
 The number of iteration of Grabcut algorithm also can be specified by the `--iter` argument. 
 
+In case of using the script to ensemble the output of different models, `--ensemble` argument is given.
+In this case, it is assumed that the mask directory includes directories in which individual masks are provided.
+
 There is also a Jupyter notebook for visualizing the results of applying the GrabCut algorithm on a given test image as well as its corresponding mask.
 It is in `notebooks/visualize_graph_cut.ipynb` and can be used for tuning hyper-parameters.
 
