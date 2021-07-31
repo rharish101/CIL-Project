@@ -109,6 +109,15 @@ The output images are saved in the directory given by the `--output-dir` argumen
 By default, this directory is `outputs`.
 The images will be saved as PNG images with the file names corresponding to the input images.
 
+### Post-Processing
+
+#### SPP
+To run the SPP algorithm on output masks and create enhanced masks, run the `spp.py` script:
+```sh
+./spp.py
+```
+The path to input masks and output directory are given by `--input-dir` and `--output-dir` arguments to the script, respectively.
+
 #### Graph-cut Post-processing
 To run Graph-cut algorithm on output masks and create enhanced masks, run the `post_processing/graph_cut.py` script:
 ```sh
