@@ -56,8 +56,9 @@ class Evaluator:
                 accuracy += Trainer._get_acc(logits, targets)
                 f1_score += Trainer._get_acc(logits, targets)
 
-            accuracy /= len(loader)
-            f1_score /= len(loader)
+            if len(loader) > 0:
+                accuracy /= len(loader)
+                f1_score /= len(loader)
 
             print(f"{name.capitalize()} accuracy: {accuracy:.5f}")
             print(f"{name.capitalize()} F1 score: {f1_score:.5f}")
