@@ -50,6 +50,7 @@ class Config:
             texture transformation
         compress_quality_upper: The upper bound for the JPEG compression in the
             texture transformation
+        spp_thresh: The probability at which the SPP slime should move over
     """
 
     learn_rate: float = 5e-5
@@ -79,6 +80,7 @@ class Config:
     downscale_max: float = 0.75
     compress_quality_lower: float = 20
     compress_quality_upper: float = 50
+    spp_thresh: float = 0.1
 
 
 def load_config(config_path: Optional[Path]) -> Config:

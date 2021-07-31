@@ -116,6 +116,15 @@ Run it as follows:
 ./evaluate.py /path/to/CIL/dataset/ /path/to/predictions/dir/
 ```
 
+### Post-Processing
+
+#### SPP
+To run the SPP algorithm on output masks and create enhanced masks, run the `spp.py` script:
+```sh
+./spp.py
+```
+The path to input masks and output directory are given by `--input-dir` and `--output-dir` arguments to the script, respectively.
+
 The metrics are printed to `stdout`.
 
 #### Graph-cut Post-processing
