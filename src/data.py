@@ -31,7 +31,7 @@ class TrainDataset(Dataset):
         config: Config,
         training_path_list: List[str],
         ground_truth_path_list: List[str],
-        random_augmentation=True,
+        random_augmentation: bool = True,
     ):
         """Load the list of training images in the dataset.
 
@@ -132,30 +132,36 @@ def get_randomizer(config: Config) -> Tuple[AlbCompose, AlbCompose]:
     This performs random operations that implicitly "augment" the data, by
     creating completely new instances.
     """
-    pair_transforms = [
-        # Rotation - Crop
-        alb.RandomCrop(config.crop_size, config.crop_size),
-        alb.RandomRotate90(),
-        alb.HorizontalFlip(),
-        alb.VerticalFlip(),
-        # Deformation
-        alb.OneOf(
-            [
-                alb.ElasticTransform(),
-                alb.GridDistortion(),
-                alb.OpticalDistortion(),
-            ],
-            p=0.5,
-        ),
-        ToTensorV2(),
-    ]
+    pair_transforms = [alb.RandomCrop(config.crop_size, config.crop_size)]
+    if config.extra_augmentations:
+        pair_transforms += [
+            alb.RandomRotate90(),
+            alb.HorizontalFlip(),
+            alb.VerticalFlip(),
+            # Deformation
+            alb.OneOf(
+                [
+                    alb.ElasticTransform(),
+                    alb.GridDistortion(),
+                    alb.OpticalDistortion(),
+                ],
+                p=0.5,
+            ),
+        ]
+    else:
+        pair_transforms.append(alb.ElasticTransform())
+    pair_transforms.append(ToTensorV2())
 
-    input_transforms = [
-        # Color transforms
-        alb.RandomBrightnessContrast(),
-        alb.ColorJitter(),
-        alb.GaussianBlur(),
-    ]
+    if config.extra_augmentations:
+        input_transforms = [
+            # Color transforms
+            alb.RandomBrightnessContrast(),
+            alb.ColorJitter(),
+            alb.GaussianBlur(),
+        ]
+    else:
+        input_transforms = []
+
     return (
         alb.Compose(pair_transforms, additional_targets={"label": "image"}),
         alb.Compose(input_transforms),
