@@ -65,7 +65,6 @@ class Config:
     mixed_precision: bool = True
     seed: int = 0
     crop_size: int = 256
-    threshold: Optional[float] = None
     loss: str = "logit_bce"
     shape_loss_weight: float = 1e-2
     temperature: float = 1.0
