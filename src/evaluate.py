@@ -54,7 +54,7 @@ class Evaluator:
             ):
                 logits = torch.log(predictions / (1 - predictions))
                 accuracy += Trainer._get_acc(logits, targets)
-                f1_score += Trainer._get_acc(logits, targets)
+                f1_score += Trainer._get_f1(logits, targets)
 
             if len(loader) > 0:
                 accuracy /= len(loader)
