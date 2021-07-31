@@ -109,6 +109,15 @@ The output images are saved in the directory given by the `--output-dir` argumen
 By default, this directory is `outputs`.
 The images will be saved as PNG images with the file names corresponding to the input images.
 
+### Evaluation
+The script `evaluate.py` uses the generated predictions and prints metrics on the training and validation data.
+Run it as follows:
+```sh
+./evaluate.py /path/to/CIL/dataset/ /path/to/predictions/dir/
+```
+
+The metrics are printed to `stdout`.
+
 #### Graph-cut Post-processing
 To run Graph-cut algorithm on output masks and create enhanced masks, run the `post_processing/graph_cut.py` script:
 ```sh
